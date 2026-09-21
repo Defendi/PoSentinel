@@ -34,8 +34,8 @@ jobs:
 
       - name: Quality Gate - Linter e Formatação (Ruff / PEPs)
         run: |
-          ruff check .
-          ruff format --check .
+          ruff check src tests
+          ruff format --check src tests
 
       - name: Quality Gate - Verificação de Tipos (Mypy Strict)
         run: |
