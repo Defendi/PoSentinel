@@ -28,6 +28,15 @@ from posentinel.rules.translations import EmptyTranslationRule
 app = typer.Typer(
     name="posentinel",
     help="Linter determinístico para arquivos .po de internacionalização (foco Odoo/pt_BR).",
+    epilog=(
+        "Exemplos:\n\n"
+        "  posentinel scan pt_BR.po\n"
+        "  posentinel scan ./addons/sale/i18n\n"
+        "  posentinel scan pt_BR.po --format json\n"
+        "  posentinel scan pt_BR.po --fail-on warning\n"
+        "  posentinel rules\n"
+        "  posentinel version"
+    ),
 )
 
 
@@ -72,7 +81,21 @@ def _determine_exit_code(summaries: list[ScanSummary], fail_on: FailOnLevel) -> 
     return 0
 
 
-@app.command()
+@app.command(
+    epilog=(
+        "Exemplos:\n\n"
+        "  posentinel scan pt_BR.po\n"
+        "      Analisa um único arquivo, saída em console, exit 1 se houver erro.\n\n"
+        "  posentinel scan ./addons/sale/i18n\n"
+        "      Varre recursivamente todos os .po de um diretório.\n\n"
+        "  posentinel scan pt_BR.po --format json\n"
+        "      Emite o resultado como JSON, ideal para pipelines de CI/CD.\n\n"
+        "  posentinel scan pt_BR.po --fail-on warning\n"
+        "      Bloqueia (exit 1) também quando há apenas avisos, sem erros.\n\n"
+        "  posentinel scan pt_BR.po --fail-on none\n"
+        "      Nunca bloqueia por violações de qualidade (exit 0), só por erro operacional."
+    )
+)
 def scan(
     target: Annotated[Path, typer.Argument(help="Arquivo .po ou diretório a analisar")],
     output_format: Annotated[

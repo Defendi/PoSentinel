@@ -1,6 +1,7 @@
 """Testes da CLI (posentinel.cli.commands) via typer.testing.CliRunner."""
 
 import json
+import re
 import runpy
 import subprocess
 import sys
@@ -14,6 +15,11 @@ from posentinel.cli.commands import app
 
 runner = CliRunner()
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
+_ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _strip_ansi(text: str) -> str:
+    return _ANSI_ESCAPE.sub("", text)
 
 
 class TestScanExitCodes:
@@ -85,6 +91,23 @@ class TestScanJsonFormat:
         assert len(payload["results"]) == 1
         assert payload["results"][0]["file_path"] == str(FIXTURES_DIR / "invalid.po")
         assert result.exit_code == 1
+
+
+class TestHelpExamples:
+    def test_root_help_includes_usage_examples(self) -> None:
+        result = runner.invoke(app, ["--help"])
+
+        assert result.exit_code == 0
+        assert "Exemplos:" in result.stdout
+        assert "posentinel scan pt_BR.po" in result.stdout
+
+    def test_scan_help_includes_usage_examples(self) -> None:
+        result = runner.invoke(app, ["scan", "--help"])
+
+        assert result.exit_code == 0
+        output = _strip_ansi(result.stdout)
+        assert "Exemplos:" in output
+        assert "--fail-on warning" in output
 
 
 class TestRulesCommand:
