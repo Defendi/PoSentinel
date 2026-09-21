@@ -7,12 +7,14 @@ from posentinel.rules.placeholders import (
     InvalidPlaceholderRule,
     MissingPlaceholderRule,
 )
+from posentinel.rules.syntax import InvalidMarkupRule
 from posentinel.rules.translations import EmptyTranslationRule
 
 __all__ = [
     "BaseRule",
     "EmptyTranslationRule",
     "ExtraPlaceholderRule",
+    "InvalidMarkupRule",
     "InvalidPlaceholderRule",
     "MissingPlaceholderRule",
     "RulesEngine",
