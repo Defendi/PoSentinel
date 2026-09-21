@@ -1,0 +1,32 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* sale
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 17.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-01-01 00:00+0000\n"
+"PO-Revision-Date: 2024-01-01 00:00+0000\n"
+"Last-Translator: \n"
+"Language-Team: Portuguese (Brazil)\n"
+"Language: pt_BR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. module: sale
+#: model:ir.model.fields,field_description:sale.field_res_partner__customer_rank
+msgid "Customer Rank"
+msgstr "Classificação do Cliente"
+
+#. module: sale
+#: code:addons/sale/models/sale_order.py:0
+#, python-format
+msgid "Order %s has been created for %(partner)s."
+msgstr "O pedido %s foi criado para %(partner)s."
+
+#. module: sale
+#: code:addons/sale/models/sale_order.py:0
+msgid "Please visit our <a href=\"/shop\">store</a> to purchase."
+msgstr "Por favor visite nossa <a href=\"/shop\">loja</a> para comprar."

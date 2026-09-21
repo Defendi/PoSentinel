@@ -299,14 +299,12 @@ Interface conceitual:
 
 ``` python
 class Rule(ABC):
-
     code: str
     description: str
     severity: Severity
 
     @abstractmethod
-    def check(self, entry, context) -> list[Issue]:
-        ...
+    def check(self, entry, context) -> list[Issue]: ...
 ```
 
 Cada regra deverá ser independente.
@@ -319,7 +317,7 @@ PO002  Missing placeholder
 PO003  Invalid placeholder
 PO004  Extra placeholder
 PO005  Invalid markup
-PO006  Translation inconsistency
+PO006  Fuzzy translation (unreviewed)
 ```
 
 Regras específicas de Odoo deverão utilizar o prefixo:
@@ -430,26 +428,32 @@ A tradução deverá preservar a estrutura necessária do markup.
 
 ------------------------------------------------------------------------
 
-## PO006 --- Translation Inconsistency
+## PO006 --- Fuzzy Translation
+
+Detectar entradas marcadas com a flag `#, fuzzy`, que indicam traduções
+desatualizadas ou pendentes de revisão humana. Essas entradas são
+ignoradas pelo Odoo em produção, gerando strings sem tradução.
 
 Exemplo:
 
-``` text
-Customer -> Cliente
-Customer -> Consumidor
-Customer -> Cliente
+``` po
+#, fuzzy
+msgid "Customer"
+msgstr "Cliente antigo"
 ```
 
 Resultado:
 
 ``` text
 PO006 WARNING
-
-The term "Customer" has multiple translations:
-
-Cliente
-Consumidor
+Translation is marked as fuzzy (unreviewed) and will be ignored at runtime
+line: 42
+msgid: "Customer"
 ```
+
+> **Nota**: A detecção de inconsistências terminológicas (mesmo `msgid`
+> com múltiplas traduções diferentes) está planejada para a v0.5 e
+> receberá um código de regra próprio naquela versão.
 
 ------------------------------------------------------------------------
 
@@ -1078,27 +1082,25 @@ A API pública deverá ser considerada estável a partir de:
 
 -   [ ] Estrutura inicial Python 3.12+
 -   [ ] `pyproject.toml`
--   [ ] Parser `.po`
--   [ ] Modelos internos
--   [ ] CLI
--   [ ] PO001
--   [ ] PO002
--   [ ] PO003
--   [ ] PO004
--   [ ] PO005
--   [ ] Console reporter
--   [ ] Testes automatizados
-
-## v0.2 --- Rules Engine
-
--   [ ] Sistema de regras extensível
--   [ ] Severidades
--   [ ] Configuração TOML
--   [ ] PO006
--   [ ] Regras de encoding
--   [ ] Regras de fuzzy
+-   [ ] Parser `.po` com suporte a plurais e metadados Odoo
+-   [ ] Modelos internos (`TranslationEntry`, `Issue`, `ScanSummary`)
+-   [ ] CLI (`scan`, `rules`, `version`)
+-   [ ] PO001 (Tradução vazia)
+-   [ ] PO002 (Placeholder ausente)
+-   [ ] PO003 (Placeholder inválido/traduzido)
+-   [ ] PO004 (Placeholder extra)
+-   [ ] PO005 (Markup HTML/XML quebrado)
+-   [ ] PO006 (Fuzzy — tradução não revisada)
+-   [ ] Console reporter (Rich)
 -   [ ] JSON reporter
--   [ ] Exit codes
+-   [ ] Exit codes (0, 1, 2) para CI/CD
+-   [ ] Fixtures de teste (`valid.po`, `invalid.po`, `odoo_pt_br.po`)
+-   [ ] Testes automatizados (cobertura ≥ 90%)
+
+## v0.2 --- Configuração e Encoding
+
+-   [ ] Configuração via `posentinel.toml`
+-   [ ] Regras de encoding e detecção de charset
 
 ## v0.3 --- Odoo
 
@@ -1120,11 +1122,11 @@ A API pública deverá ser considerada estável a partir de:
 
 ## v0.5 --- Consistência
 
--   [ ] Glossário
--   [ ] Análise de termos
--   [ ] Detecção de traduções inconsistentes
+-   [ ] Glossário de termos
+-   [ ] Análise de consistência terminológica (mesmo `msgid` com múltiplas traduções)
+-   [ ] Código de regra dedicado para inconsistência (ex: `PO007`)
 -   [ ] Similaridade textual
--   [ ] Relatórios avançados
+-   [ ] Relatórios avançados de consistência
 
 ## v0.6 --- IA
 
@@ -1311,22 +1313,25 @@ Entrega:
 ``` text
 [ ] Git repository
 [ ] Python 3.12+
-[ ] pyproject.toml
+[ ] pyproject.toml (Hatchling, PEP 621)
 [ ] src layout
-[ ] PO parser
-[ ] TranslationEntry
-[ ] Issue
-[ ] Rule base
-[ ] PO001
-[ ] PO002
-[ ] PO003
-[ ] PO004
-[ ] PO005
-[ ] CLI scan
-[ ] Console reporter
-[ ] JSON reporter
-[ ] Exit codes
-[ ] Unit tests
+[ ] PO parser (polib, plurais, metadados Odoo, fallback de encoding)
+[ ] TranslationEntry + OdooMetadata (frozen dataclasses)
+[ ] Issue + ScanSummary
+[ ] BaseRule + RulesEngine
+[ ] PO001 (EmptyTranslationRule)
+[ ] PO002 (MissingPlaceholderRule)
+[ ] PO003 (InvalidPlaceholderRule)
+[ ] PO004 (ExtraPlaceholderRule)
+[ ] PO005 (InvalidMarkupRule)
+[ ] PO006 (FuzzyTranslationRule)
+[ ] TranslationAnalyzer (scan de arquivo e diretório)
+[ ] ConsoleReporter (Rich)
+[ ] JsonReporter
+[ ] CLI: scan, rules, version
+[ ] Exit codes: 0, 1, 2
+[ ] Fixtures: valid.po, invalid.po, odoo_pt_br.po
+[ ] Testes automatizados (cobertura >= 90%)
 [ ] README
 [ ] LICENSE
 [ ] CHANGELOG

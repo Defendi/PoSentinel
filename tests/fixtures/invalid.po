@@ -1,0 +1,36 @@
+# Translation of Odoo Server with errors.
+# 	* sale
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 17.0\n"
+"Language: pt_BR\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+#. module: sale
+#: model:ir.model.fields,field_description:sale.field_res_partner__empty_field
+msgid "Empty Translation Field"
+msgstr ""
+
+#. module: sale
+#: code:addons/sale/models/sale_order.py:0
+#, python-format
+msgid "Invoice %s amount is %d"
+msgstr "Fatura valor é %d"
+
+#. module: sale
+#: code:addons/sale/models/sale_order.py:0
+#, python-format
+msgid "Welcome %(user_name)s to Odoo"
+msgstr "Bem-vindo %(nome_usuario)s ao Odoo"
+
+#. module: sale
+#: code:addons/sale/models/sale_order.py:0
+#, python-format
+msgid "Single argument %s"
+msgstr "Argumento %s e outro %s"
+
+#. module: sale
+#: code:addons/sale/models/sale_order.py:0
+msgid "Click <b>here</b> to proceed."
+msgstr "Clique aqui para prosseguir."

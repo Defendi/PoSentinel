@@ -218,6 +218,7 @@ When reviewing async code that handles concurrent requests:
        async def run(self, task):
            self.current_task = task  # Race condition!
 
+
    # ✅ After: Request-scoped state
    class Workflow:
        async def run(self, task):
@@ -392,6 +393,7 @@ def validate_email(email: str) -> None:
     if not email or "@" not in email:
         raise ValueError("Invalid email")
 
+
 # Import everywhere
 from utils.validation import validate_email
 ```
@@ -413,6 +415,7 @@ uv run python scripts/analyze_imports.py services/
 ```python
 # Replace with tenacity
 from tenacity import retry, stop_after_attempt, wait_exponential
+
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential())
 async def fetch_data(url: str):
