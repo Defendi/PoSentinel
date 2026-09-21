@@ -2,6 +2,7 @@
 
 from posentinel.rules.base import BaseRule
 from posentinel.rules.engine import RulesEngine
+from posentinel.rules.fuzzy import FuzzyTranslationRule
 from posentinel.rules.placeholders import (
     ExtraPlaceholderRule,
     InvalidPlaceholderRule,
@@ -14,6 +15,7 @@ __all__ = [
     "BaseRule",
     "EmptyTranslationRule",
     "ExtraPlaceholderRule",
+    "FuzzyTranslationRule",
     "InvalidMarkupRule",
     "InvalidPlaceholderRule",
     "MissingPlaceholderRule",
