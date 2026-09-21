@@ -1,10 +1,11 @@
 # ==============================================================================
-# UXSentinel - Configuração do Ruff Linter & Formatter (Python 3.12 / PEPs)
+# PoSentinel - Configuração do Ruff Linter & Formatter (Python 3.12 / PEPs)
+# Alinhado com docs/trd.md — seção "Estilo de código"
 # ==============================================================================
 
 target-version = "py312"
-line-length = 110
-src = ["uxsentinel", "tests"]
+line-length = 100
+src = ["src", "tests"]
 
 [lint]
 select = [
@@ -12,16 +13,16 @@ select = [
     "W",     # pycodestyle warnings (PEP 8)
     "F",     # Pyflakes
     "I",     # isort (organização de imports - PEP 8)
-    "UP",    # pyupgrade (conformidade com Python 3.12 nativo)
     "B",     # flake8-bugbear (prevenção de bugs)
+    "C4",    # flake8-comprehensions
+    "UP",    # pyupgrade (conformidade com Python 3.12 nativo)
+    "ARG",   # flake8-unused-arguments
     "SIM",   # flake8-simplify (simplificação de código Pythonico)
 ]
-ignore = [
-    "E501",  # Comprimento de linha gerido pelo formatador
-]
+ignore = []
 
 [lint.isort]
-known-first-party = ["uxsentinel"]
+known-first-party = ["posentinel"]
 
 [format]
 quote-style = "double"
