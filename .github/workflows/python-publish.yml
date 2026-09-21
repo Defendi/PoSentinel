@@ -1,0 +1,62 @@
+# ==============================================================================
+# Pipeline de CI/CD: Qualidade, Testes e Publicação do PoSentinel no PyPI
+# ==============================================================================
+
+name: Publish PoSentinel to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch: # Permite disparo manual pelo painel de Actions do GitHub
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-publish:
+    name: Build, Test & Publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Instalar PoSentinel e Dependências de Desenvolvimento
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Quality Gate - Linter e Formatação (Ruff / PEPs)
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Quality Gate - Verificação de Tipos (Mypy Strict)
+        run: |
+          mypy src
+
+      - name: Executar Bateria de Testes Automatizados (cobertura mínima 85%)
+        run: |
+          pytest --cov-fail-under=85
+
+      - name: Construir Pacotes de Distribuição (Wheel e Sdist)
+        run: |
+          python -m build
+
+      - name: Validar Integridade dos Pacotes (Twine)
+        run: |
+          twine check --strict dist/*
+
+      - name: Publicar Pacote no PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN || secrets.PYPI_TOKEN }}
+          skip-existing: false
+
