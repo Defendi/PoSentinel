@@ -38,6 +38,33 @@ implementação for retomada.
 | Modelos de domínio, contratos de regras, reporters, plano de testes | `docs/superpowers/specs/2026-09-21-posentinel-core-design.md` |
 | Roadmap completo e visão de longo prazo | `docs/PoSentinel_Project_Plan.md` |
 
+## Gestão de tarefas no Jira
+
+As tarefas do projeto são gerenciadas no Jira, projeto **"PoSentinel Tarefas"** (key `PST`), no site
+`mygotryx.atlassian.net`. Use o MCP `atlassian-gotryx` para consultar, criar ou atualizar issues
+desse projeto (épicos, histórias, bugs, tarefas e subtarefas) — não use o MCP `atlassian` genérico
+nem assuma outro projeto Jira para o PoSentinel.
+
+## Fluxo de execução de uma task (card Jira)
+
+Ao executar um card do projeto Jira `PST` (`PoSentinel Tarefas`), siga estritamente esta sequência:
+
+1. **Ler o card**: buscar a descrição completa no Jira (`mcp__atlassian-gotryx__getJiraIssue`) e
+   revisá-la contra as specs em `docs/` (TRD, ADRs, PRDs, design spec) e a skill `posentinel-spec`.
+2. **Comentar o plano**: publicar um comentário no card (`addCommentToJiraIssue`) descrevendo quais
+   implementações serão executadas, antes de escrever qualquer código.
+3. **Mover para "Fazendo"**: transicionar o status do card (`transitionJiraIssue`) para refletir
+   que o trabalho começou.
+4. **Delegar a implementação**: chamar o agente de implementação (ex: `python-pro`) para executar
+   o trabalho descrito no comentário do passo 2.
+5. **Testar**: rodar a suíte de testes (`pytest`) e validar que a implementação cobre os critérios
+   de aceite do card.
+6. **Revisar**: fazer code review da implementação (ex: skill `code-review` /
+   `python-backend-reviewer`) antes de consolidar.
+7. **Commitar**: criar o commit com a implementação aprovada.
+8. **Comentar o resultado**: publicar um novo comentário no card resumindo o que foi implementado.
+9. **Mover para "Pronto para testar"**: transicionar o status final do card.
+
 ## Ferramental já decidido (para quando a implementação começar)
 
 Config de tooling (`pyproject.toml`, `ruff.toml`) já existe e está alinhada ao TRD, mesmo sem
