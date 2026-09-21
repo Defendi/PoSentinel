@@ -120,14 +120,7 @@ class MissingPlaceholderRule(BaseRule):
             if missing:
                 tokens = ", ".join(sorted(missing))
                 issues.append(
-                    Issue(
-                        code=self.code,
-                        message=f"Placeholder(s) ausente(s) na tradução: {tokens}",
-                        severity=self.default_severity,
-                        line=entry.line,
-                        msgid=entry.msgid,
-                        odoo_context=entry.odoo_metadata.module,
-                    )
+                    self._issue(entry, f"Placeholder(s) ausente(s) na tradução: {tokens}")
                 )
         return issues
 
@@ -150,20 +143,11 @@ class InvalidPlaceholderRule(BaseRule):
             translated = _extract_placeholders(translation)
             _missing, _extra, substitutions = _diff(original, translated)
             for wrong_token, expected_token in substitutions:
-                issues.append(
-                    Issue(
-                        code=self.code,
-                        message=(
-                            f"Placeholder '{expected_token}' foi traduzido "
-                            f"incorretamente para '{wrong_token}'"
-                        ),
-                        severity=self.default_severity,
-                        line=entry.line,
-                        msgid=entry.msgid,
-                        odoo_context=entry.odoo_metadata.module,
-                        suggestion=expected_token,
-                    )
+                message = (
+                    f"Placeholder '{expected_token}' foi traduzido "
+                    f"incorretamente para '{wrong_token}'"
                 )
+                issues.append(self._issue(entry, message, suggestion=expected_token))
         return issues
 
 
@@ -186,16 +170,6 @@ class ExtraPlaceholderRule(BaseRule):
             _missing, extra, _substitutions = _diff(original, translated)
             if extra:
                 tokens = ", ".join(sorted(extra))
-                issues.append(
-                    Issue(
-                        code=self.code,
-                        message=(
-                            f"Placeholder(s) extra(s) na tradução, ausente(s) no original: {tokens}"
-                        ),
-                        severity=self.default_severity,
-                        line=entry.line,
-                        msgid=entry.msgid,
-                        odoo_context=entry.odoo_metadata.module,
-                    )
-                )
+                message = f"Placeholder(s) extra(s) na tradução, ausente(s) no original: {tokens}"
+                issues.append(self._issue(entry, message))
         return issues

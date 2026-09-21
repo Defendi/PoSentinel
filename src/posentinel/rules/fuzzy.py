@@ -13,13 +13,4 @@ class FuzzyTranslationRule(BaseRule):
         if entry.is_header or not entry.is_fuzzy:
             return []
 
-        return [
-            Issue(
-                code=self.code,
-                message="Entrada marcada como fuzzy — tradução pendente de revisão",
-                severity=self.default_severity,
-                line=entry.line,
-                msgid=entry.msgid,
-                odoo_context=entry.odoo_metadata.module,
-            )
-        ]
+        return [self._issue(entry, "Entrada marcada como fuzzy — tradução pendente de revisão")]

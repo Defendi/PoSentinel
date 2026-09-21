@@ -62,20 +62,10 @@ class InvalidMarkupRule(BaseRule):
             if missing:
                 tags_text = ", ".join(f"<{name}>" for name in sorted(missing))
                 issues.append(
-                    self._build_issue(entry, f"Tag(s) HTML/XML ausente(s) na tradução: {tags_text}")
+                    self._issue(entry, f"Tag(s) HTML/XML ausente(s) na tradução: {tags_text}")
                 )
 
             if not _is_balanced(translated_tags):
-                issues.append(self._build_issue(entry, "Tags HTML/XML desequilibradas na tradução"))
+                issues.append(self._issue(entry, "Tags HTML/XML desequilibradas na tradução"))
 
         return issues
-
-    def _build_issue(self, entry: TranslationEntry, message: str) -> Issue:
-        return Issue(
-            code=self.code,
-            message=message,
-            severity=self.default_severity,
-            line=entry.line,
-            msgid=entry.msgid,
-            odoo_context=entry.odoo_metadata.module,
-        )
