@@ -1,0 +1,24 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: pt_BR\n"
+
+#. module: sale
+#: model:ir.model.fields,field_description:sale.field_sale_order__partner_id
+msgid "Hello %(partner_name)s, your order is ready."
+msgstr "Olá, seu pedido está pronto."
+
+#. module: sale
+#: model:ir.model.fields,field_description:sale.field_sale_order__amount_total
+msgid "Total amount: %(amount)s"
+msgstr "Valor total: %(valor)s"
+
+msgid "Click <a>here</a> to confirm."
+msgstr "Clique aqui para confirmar."
+
+#, fuzzy
+msgid "Draft"
+msgstr "Rascunho"
+
+msgid "Internal note"
+msgstr ""

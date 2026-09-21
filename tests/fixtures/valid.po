@@ -1,0 +1,23 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: PoSentinel Fixtures 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: pt_BR\n"
+
+#. module: sale
+#: model:ir.model.fields,field_description:sale.field_sale_order__partner_id
+msgid "Customer"
+msgstr "Cliente"
+
+#. module: sale
+#: model:ir.model.fields,field_description:sale.field_sale_order__note
+msgid "Please review the order %(order_name)s before confirming."
+msgstr "Por favor, revise o pedido %(order_name)s antes de confirmar."
+
+msgid "Click <a>here</a> to continue."
+msgstr "Clique <a>aqui</a> para continuar."
+
+msgid "%(count)d item was added to the cart"
+msgid_plural "%(count)d items were added to the cart"
+msgstr[0] "%(count)d item foi adicionado ao carrinho"
+msgstr[1] "%(count)d itens foram adicionados ao carrinho"
