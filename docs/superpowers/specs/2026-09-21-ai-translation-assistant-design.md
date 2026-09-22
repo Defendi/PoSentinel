@@ -236,12 +236,12 @@ class TranslationSuggester:
             model=self._model,
             max_tokens=1024,
             messages=[{"role": "user", "content": prompt}],
-            response_format=TranslationSuggestion,
+            output_format=TranslationSuggestion,
         )
-        return response.parsed
+        return response.parsed_output
 ```
 
-O cliente é injetável (`client: anthropic.Anthropic | None = None`) especificamente para permitir mock em testes — **nenhum teste automatizado faz chamada de rede real à API Claude**. O schema exato de structured output (`response_format`/`output_config.format`) e o tratamento fino de exceções (`RateLimitError`, `APIStatusError`, etc.) são detalhados na fase de implementação, consultando a skill `claude-api` no momento de escrever o código — esta spec fixa a interface (`suggest(entry, issue, source_language, target_language) -> TranslationSuggestion`), não a sintaxe exata da chamada HTTP.
+O cliente é injetável (`client: anthropic.Anthropic | None = None`) especificamente para permitir mock em testes — **nenhum teste automatizado faz chamada de rede real à API Claude**. `output_format=TranslationSuggestion` e `response.parsed_output` foram confirmados contra `anthropic==1.7.0` instalado no projeto (`client.messages.parse` usa `pydantic.TypeAdapter` internamente, que funciona nativamente com dataclasses `frozen=True, slots=True` — testado isoladamente antes de travar esta assinatura).
 
 ---
 
