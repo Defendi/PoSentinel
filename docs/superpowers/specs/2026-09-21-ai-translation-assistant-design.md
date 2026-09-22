@@ -70,14 +70,14 @@ model = "claude-opus-5"
 | Nível de bloqueio | `--fail-on` | `[scan] fail_on` | `"error"` |
 | Idioma do `msgid` (base) | `--source-lang` | `[project] source_language` | `"en"` |
 | Idioma do `msgstr` (tradução) | `--target-lang` | `[project] target_language` | `"pt_BR"` |
-| Desativar IA | `--no-translation` | `[ai] enabled` (inverso) | `enabled = true` |
-| Aplicar sem perguntar | `--auto-translate` | `[ai] auto_translate` | `false` |
+| Ativar/desativar IA | `--translation` / `--no-translation` | `[ai] enabled` | `true` |
+| Aplicar sem perguntar | `--auto-translate` / `--no-auto-translate` | `[ai] auto_translate` | `false` |
 | Modelo Claude usado | `--ai-model` | `[ai] model` | `"claude-opus-5"` |
 
 **Regra de resolução por atributo** (aplicada na CLI, antes de qualquer uso):
 
 - Valores com escolha discreta (`target`, `format`, `fail_on`, `source_language`, `target_language`, `model`): a flag CLI usa `None` como default no Typer; se `None`, usa o valor do config; se o config também não tiver a seção/chave, usa o default embutido. Ordem: `cli_value or config_value or built_in_default`.
-- Flags booleanas aditivas (`--no-translation`, `--auto-translate`): a flag CLI **desativa/ativa incondicionalmente** quando passada. `--no-translation` sempre desativa a IA, independente do `[ai] enabled` do config. `--auto-translate` sempre ativa, independente do `[ai] auto_translate`. Quando a flag não é passada, vale o valor do config (default `enabled=true`, `auto_translate=false`).
+- Atributos booleanos (`enabled`, `auto_translate`): cada um é um **par de flags simétrico** (`--translation`/`--no-translation`, `--auto-translate`/`--no-auto-translate`), declarado no Typer com a sintaxe nativa `"--flag/--no-flag"` sobre um parâmetro `bool | None = None`. `None` (nenhuma das duas passada) → usa o valor do config; `True`/`False` (uma das duas passada) → **sempre vence**, em qualquer direção, independente do config. Isso permite tanto desativar a IA quanto forçá-la a ligar mesmo com `[ai] enabled = false` no config — e o mesmo para `auto_translate` (ex: forçar confirmação manual mesmo com `auto_translate = true` no config, via `--no-auto-translate`).
 
 ### 3.3 Modelos de configuração
 
@@ -225,7 +225,7 @@ class TranslationSuggester:
 
         Levanta `anthropic.AuthenticationError` se não houver credenciais configuradas
         (nem ANTHROPIC_API_KEY, nem perfil OAuth de `ant auth login`); o chamador decide
-        como degradar (ver seção 6.4).
+        como degradar (ver seção 6.5).
         """
         prompt = (
             build_generate_prompt(entry, source_language, target_language)
@@ -393,12 +393,17 @@ def scan(
     fail_on: Annotated[FailOnLevel | None, typer.Option("--fail-on")] = None,
     source_lang: Annotated[str | None, typer.Option("--source-lang", help="Idioma do msgid")] = None,
     target_lang: Annotated[str | None, typer.Option("--target-lang", help="Idioma do msgstr")] = None,
-    no_translation: Annotated[
-        bool, typer.Option("--no-translation", help="Desativa a camada de IA")
-    ] = False,
+    translation_enabled: Annotated[
+        bool | None,
+        typer.Option("--translation/--no-translation", help="Ativa/desativa a camada de IA"),
+    ] = None,
     auto_translate: Annotated[
-        bool, typer.Option("--auto-translate", help="Aplica sugestões sem confirmar")
-    ] = False,
+        bool | None,
+        typer.Option(
+            "--auto-translate/--no-auto-translate",
+            help="Aplica sugestões sem confirmar / força confirmação manual",
+        ),
+    ] = None,
     ai_model: Annotated[str | None, typer.Option("--ai-model")] = None,
 ) -> None:
     ...
@@ -406,15 +411,34 @@ def scan(
 
 `target` passa a ter default `None` (resolvido para `Path(config.scan.target)`, que por sua vez tem default `"."`) — mudança de assinatura em relação ao MVP v0.1.0, onde `target` era obrigatório. Isso é o único ajuste retroativo necessário nesta spec sobre o comando existente.
 
-### 6.4 Fluxo completo do `scan`
+Resolução dos dois atributos booleanos, dentro do corpo de `scan`:
+
+```python
+config = ConfigLoader().load(Path.cwd())
+ai_enabled = translation_enabled if translation_enabled is not None else config.ai.enabled
+auto_translate_effective = auto_translate if auto_translate is not None else config.ai.auto_translate
+```
+
+### 6.4 De onde vêm as `TranslationEntry` para a camada de IA
+
+`ScanSummary` (modelo já existente do Core, inalterado por esta spec) **não carrega** as `TranslationEntry` — só `file_path`, `locale`, `total_entries` e `issues`. O `TranslationAnalyzer` as descarta depois de rodar o `RulesEngine`, porque `ScanSummary` é um objeto de resumo para reporte, não um contêiner de dados brutos de parsing.
+
+**Decisão**: a CLI reparseia o arquivo — chama `PoParser().parse_file(path)` uma segunda vez, especificamente para montar `entries_by_msgid`. Alternativa descartada: estender `ScanSummary`/`TranslationAnalyzer` para carregar as entries, o que tocaria em modelos do Core já testados e publicados no PyPI (v0.1.1) sem necessidade — o custo de reparsear é puramente local (CPU/disco) e desprezível frente ao custo de rede de uma chamada de IA por entrada, que já domina o tempo total do fluxo. Não há necessidade de otimizar isso agora (YAGNI); se algum dia o reparse for medido como gargalo real, é uma mudança isolada e reversível.
+
+```python
+parse_result = PoParser().parse_file(path)  # segunda chamada, só quando ai_enabled é True
+entries_by_msgid = {entry.msgid: entry for entry in parse_result.entries}
+```
+
+### 6.5 Fluxo completo do `scan`
 
 1. `ConfigLoader().load(Path.cwd())` → `PoSentinelConfig`.
-2. Resolve todos os atributos (seção 3.2: CLI > config > default).
+2. Resolve todos os atributos (seção 3.2: CLI > config > default), incluindo `ai_enabled` e `auto_translate_effective`.
 3. `TranslationAnalyzer` roda exatamente como hoje (parser + engine determinísticos) → `list[ScanSummary]`.
-4. Se `ai_enabled` é `False` (via `--no-translation` ou `[ai] enabled = false`): pula direto para o reporter, comportamento idêntico ao MVP v0.1.0.
+4. Se `ai_enabled` é `False`: pula direto para o reporter, comportamento idêntico ao MVP v0.1.0.
 5. Se `ai_enabled` é `True`: para cada `ScanSummary` com `issues` não vazias:
-   a. Reconstrói `entries_by_msgid` a partir do resultado do parser para aquele arquivo.
-   b. Instancia `TranslationSuggester(model=resolved_ai_model)`.
+   a. Reparseia o arquivo (seção 6.4) para obter `entries_by_msgid`.
+   b. Instancia `TranslationSuggester(model=resolved_ai_model)` — uma vez por execução do comando, fora do loop de arquivos (reaproveitado entre arquivos; instanciar o client HTTP a cada arquivo seria desperdício sem benefício).
    c. Na **primeira** chamada, se `anthropic.AuthenticationError` for levantada: imprime um aviso único (`"Aviso: sem credenciais Claude configuradas — rode 'ant auth login' ou defina ANTHROPIC_API_KEY. Continuando sem sugestões de IA."`), desativa `ai_enabled` para o restante da execução inteira (não só do arquivo atual) e segue sem abortar o scan.
    d. Caso contrário, `TranslationAssistant.process(...)` → `list[TranslationChange]`.
    e. `PoWriter().apply_changes(path, changes)` — só escreve se houver ao menos uma mudança `applied=True`.
@@ -444,7 +468,7 @@ def report(
 
 Nenhum código de OAuth é escrito no PoSentinel. O `TranslationSuggester` instancia `anthropic.Anthropic()` sem argumentos — a SDK resolve credenciais na ordem: `ANTHROPIC_API_KEY` → `ANTHROPIC_AUTH_TOKEN` → perfil OAuth ativo de `ant auth login` → Workload Identity Federation → perfil default em disco.
 
-O PoSentinel documenta (README) que a forma recomendada de autenticar é `ant auth login` (CLI oficial da Anthropic, instala separadamente) — vinculado à assinatura Claude Pro/Max do usuário — ou definir `ANTHROPIC_API_KEY` para uso via billing direto da API. A falha de autenticação é tratada como degradação graciosa (seção 6.4), nunca como erro fatal do scan.
+O PoSentinel documenta (README) que a forma recomendada de autenticar é `ant auth login` (CLI oficial da Anthropic, instala separadamente) — vinculado à assinatura Claude Pro/Max do usuário — ou definir `ANTHROPIC_API_KEY` para uso via billing direto da API. A falha de autenticação é tratada como degradação graciosa (seção 6.5), nunca como erro fatal do scan.
 
 ---
 
@@ -459,7 +483,7 @@ Nenhum teste faz chamada de rede real — `TranslationSuggester` é sempre insta
 | `tests/test_ai_client.py` | `TranslationSuggester.suggest`: chamada única por invocação (não em lote), propagação de `AuthenticationError` sem capturá-la internamente, seleção do prompt certo por `issue.code`. |
 | `tests/test_ai_orchestrator.py` | `TranslationAssistant.process`: ignora `SYS001`, ignora issue sem `msgid`/entry correspondente, `auto_translate=True` nunca chama `confirm`, `auto_translate=False` chama `confirm` e respeita seu retorno. |
 | `tests/test_po_writer.py` | `PoWriter.apply_changes`: cria backup `.bak` com conteúdo original, aplica só as mudanças `applied=True`, retorna `None` (sem side-effect) quando não há mudanças aplicadas. |
-| `tests/test_cli.py` (extensão) | Precedência CLI > config > default para cada atributo da tabela 3.2; `--no-translation` não instancia `TranslationSuggester`; `--auto-translate` aplica sem chamar `confirm`; modo interativo chama `confirm` (mockado) e respeita a resposta; falha de autenticação simulada gera aviso único e não aborta (exit code determinado só pelas issues do Core). |
+| `tests/test_cli.py` (extensão) | Precedência CLI > config > default para cada atributo da tabela 3.2; `--no-translation` não instancia `TranslationSuggester`; `--auto-translate` aplica sem chamar `confirm`; **`--no-auto-translate` força confirmação mesmo com `[ai] auto_translate = true` no config** (e o simétrico: `--auto-translate` aplica sem confirmar mesmo com `auto_translate = false` no config); modo interativo (nenhuma das duas flags passada) chama `confirm` (mockado) e respeita a resposta; falha de autenticação simulada gera aviso único e não aborta (exit code determinado só pelas issues do Core). |
 
 Meta de cobertura: mantém o padrão do projeto (≥ 90% no Core; a camada de IA, por depender de mocks determinísticos do client, também é alvo de 100% de cobertura de linha, seguindo a prática já estabelecida nos módulos existentes).
 
