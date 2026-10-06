@@ -1,6 +1,6 @@
 # PoSentinel
 
-**Odoo Translation Quality Analyzer**
+**Analisador de Qualidade de Tradução para Odoo**
 
 PoSentinel é uma ferramenta Python para análise de qualidade de arquivos
 de internacionalização `.po`, inicialmente com foco em traduções do Odoo
@@ -608,7 +608,7 @@ sem precisar informar todas as opções pela linha de comando.
 
 ------------------------------------------------------------------------
 
-# 13. Exit Codes
+# 13. Códigos de Saída (Exit Codes)
 
 A CLI deverá retornar códigos de saída adequados para CI/CD.
 
@@ -1171,7 +1171,7 @@ posentinel
 
 ## Tagline
 
-**Odoo Translation Quality Analyzer**
+**Analisador de Qualidade de Tradução para Odoo**
 
 Alternativa:
 
