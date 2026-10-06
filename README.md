@@ -119,11 +119,23 @@ auto_translate = false
 O PoSentinel conta com um assistente capaz de sugerir traduções contextuais e corrigir inconsistências técnicas através da API do Claude (Anthropic).
 
 **Configurando o Acesso:**
-Antes de utilizar, exporte a chave da API no seu terminal:
+
+Você pode conectar o assistente à API da Anthropic de duas maneiras:
+
+**Opção 1: Via Chave de API (Tradicional)**
+Exporte a chave gerada no Console da Anthropic no seu terminal:
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."
 ```
-*(Ou faça login via ferramenta CLI oficial: `ant auth login`)*
+
+**Opção 2: Via SSO / OAuth (Recomendado para Empresas)**
+Se você possui uma assinatura vinculada a um SSO ou prefere não manipular chaves puras, utilize a CLI oficial da Anthropic (`ant`).
+Basta rodar o comando de autenticação no terminal:
+```bash
+ant auth login
+```
+Isso abrirá uma janela no seu navegador para o fluxo de Single Sign-On (SSO). Após o login com sucesso, o token ficará salvo no seu perfil local. 
+O PoSentinel utiliza o SDK oficial da Anthropic, que é capaz de detectar e **utilizar essa sessão de SSO automaticamente**, sem a necessidade de nenhuma configuração adicional ou variáveis de ambiente!
 
 **Utilizando o Assistente:**
 Rode o scan com a flag `--translation`:

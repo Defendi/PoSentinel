@@ -40,7 +40,7 @@ app = typer.Typer(
     epilog=(
         "Para ativar as sugestões de tradução automáticas, você precisa configurar\n"
         "uma chave de API da Anthropic. Isso pode ser feito definindo a variável\n"
-        "de ambiente ANTHROPIC_API_KEY ou autenticando via CLI (ant auth login).\n"
+        "de ambiente ANTHROPIC_API_KEY ou autenticando via SSO (ant auth login).\n"
         "Se nenhuma chave for detectada, o comando continuará apenas como linter local.\n\n"
         "Exemplos:\n\n"
         "  posentinel scan pt_BR.po\n"
@@ -124,7 +124,7 @@ def _determine_exit_code(summaries: list[ScanSummary], fail_on: FailOnLevel) -> 
     epilog=(
         "Conectando à IA (Anthropic / Claude):\n"
         "  O assistente de IA necessita de acesso à API da Anthropic. Exporte a variável\n"
-        '  ANTHROPIC_API_KEY="sua-chave" ou use `ant auth login` no terminal.\n\n'
+        '  ANTHROPIC_API_KEY="sua-chave" ou use `ant auth login` para autenticar via SSO.\n\n'
         "Exemplos:\n\n"
         "  posentinel scan pt_BR.po\n"
         "      Analisa um único arquivo, saída em console, exit 1 se houver erro.\n\n"
@@ -214,8 +214,11 @@ def scan(
                     )
                 except (anthropic.AuthenticationError, TypeError):
                     if translation_enabled is True:
-                        typer.echo("Erro: Credenciais Claude ausentes (exporte ANTHROPIC_API_KEY).", err=True)
-                        raise typer.Exit(code=2)
+                        typer.echo(
+                            "Erro: Credenciais Claude ausentes (exporte ANTHROPIC_API_KEY).",
+                            err=True,
+                        )
+                        raise typer.Exit(code=2) from None
                     eff_ai_enabled = False
                     break
 
@@ -230,8 +233,10 @@ def scan(
                     PoWriter().apply_changes(Path(summary.file_path), changes)
             except (anthropic.AuthenticationError, TypeError):
                 if translation_enabled is True:
-                    typer.echo("Erro: Credenciais Claude ausentes (exporte ANTHROPIC_API_KEY).", err=True)
-                    raise typer.Exit(code=2)
+                    typer.echo(
+                        "Erro: Credenciais Claude ausentes (exporte ANTHROPIC_API_KEY).", err=True
+                    )
+                    raise typer.Exit(code=2) from None
                 eff_ai_enabled = False
                 break
 
