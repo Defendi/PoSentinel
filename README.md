@@ -4,74 +4,140 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/posentinel.svg)](https://pypi.org/project/posentinel/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Analisador de Qualidade de Tradução para Odoo** — Proteja as traduções do seu Odoo antes que cheguem à produção.
+**Analisador de Qualidade de Tradução para Odoo** — Proteja as traduções do seu ecossistema Odoo e evite falhas críticas em produção.
 
 ---
 
-## Visão Geral
+## O que é o PoSentinel?
 
-O PoSentinel é um linter determinístico e motor de qualidade projetado para inspecionar arquivos de localização `.po`, com suporte de primeira classe para módulos e termos do Odoo (especialmente `pt_BR` e configurações multilíngues).
+O **PoSentinel** é um linter determinístico voltado para a validação de arquivos de localização `.po`, com foco especial em módulos do sistema Odoo e na língua portuguesa (`pt_BR`). 
 
-Ele captura problemas críticos de tradução em tempo de execução, como formatadores e variáveis Python (`%s`, `%(name)s`) ausentes ou alterados, tags HTML/XML quebradas, traduções vazias e entradas `fuzzy` não revisadas. Além disso, conta com um Assistente de Inteligência Artificial para sugerir correções automaticamente.
+No Odoo, um erro simples de digitação em um placeholder (por exemplo, traduzir `%(name)s` para `%(nome)s`) pode causar **erros de servidor irreversíveis (Internal Server Error / Tracebacks)** ao renderizar uma visualização ou relatório. O PoSentinel foi criado exatamente para detectar essas anomalias em tempo de desenvolvimento ou integração contínua (CI/CD).
 
-## Começo Rápido
+### Principais Funcionalidades
 
-### Instalação
+- **Proteção de Placeholders:** Identifica se variáveis Python (como `%s`, `%d`, `%(partner_id)s`, `{value}`) foram apagadas, alteradas ou inseridas indevidamente na tradução.
+- **Validação de Marcação (Markup):** Detecta tags HTML/XML desbalanceadas ou corrompidas (ex: `<strong>` sem o devido fechamento `</strong>`).
+- **Detecção de Termos Duvidosos:** Avisa sobre traduções vazias ou marcadas como `fuzzy` (desatualizadas).
+- **Formatos de Saída Versáteis:** Resultados visuais detalhados no terminal ou exportação em JSON para automações estruturadas.
+- **Assistente de Tradução (Opcional):** Integração opcional para corrigir automaticamente as traduções diretamente pelo terminal.
+
+---
+
+## Instalação
+
+Recomendamos instalar o PoSentinel usando `pipx` ou `uv` para isolar suas dependências, ou diretamente via `pip` no seu ambiente:
 
 ```bash
+# Usando pip tradicional
 pip install posentinel
+
+# Ou usando uv (recomendado)
+uv tool install posentinel
 ```
 
-### Uso Básico
+---
 
-Analisar um único arquivo `.po`:
+## Como Usar (Guia Rápido)
+
+O comando principal é o `posentinel scan`, que pode receber o caminho de um arquivo específico ou de um diretório inteiro.
+
+### 1. Varredura Básica
+
+Para escanear um único arquivo ou todos os arquivos de um diretório recursivamente:
 
 ```bash
+# Inspecionar um arquivo específico
 posentinel scan caminho/para/pt_BR.po
-```
 
-Analisar um diretório inteiro ou estrutura de módulos Odoo:
-
-```bash
+# Inspecionar uma pasta de um módulo Odoo
 posentinel scan ./addons/meu_modulo/i18n
 ```
 
-Exportar problemas em formato JSON (ideal para integrações de CI/CD):
+### 2. Integração com Pipelines (CI/CD)
+
+O PoSentinel é ideal para barrar Pull Requests que introduzam erros de tradução. 
+Você pode ajustar o nível de rigor da análise com o parâmetro `--fail-on`:
 
 ```bash
-posentinel scan pt_BR.po --format json
+# O comando só falha (exit code 1) se houver ERROS graves (placeholders corrompidos). Ignora avisos.
+posentinel scan pt_BR.po --fail-on error
+
+# O comando falha se houver ERROS ou AVISOS (traduções vazias, fuzzy).
+posentinel scan pt_BR.po --fail-on warning
 ```
 
-## Códigos de Saída (Exit Codes) para CI/CD
+Exemplo de uso no **GitHub Actions**:
 
-- `0`: Validação concluída com sucesso sem problemas impeditivos.
-- `1`: Problemas de validação detectados (erros encontrados).
-- `2`: Erro de tempo de execução, argumentos inválidos ou falha de configuração.
+```yaml
+name: Validar Traduções
+on: [pull_request]
+jobs:
+  posentinel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar PoSentinel
+        run: pip install posentinel
+      - name: Rodar Inspeção
+        run: posentinel scan ./addons --fail-on error
+```
 
-## Autenticação e Assistente de Tradução por IA (v0.6)
+### 3. Gerar Saída para Ferramentas Terceiras
 
-O PoSentinel suporta opcionalmente um assistente de tradução e correção usando a API do Claude (Anthropic).
+Para exportar as falhas num formato processável, utilize `--format json`:
 
-**Para configurar a autenticação:**
-A maneira recomendada é exportar a variável de ambiente `ANTHROPIC_API_KEY`:
 ```bash
-export ANTHROPIC_API_KEY="sk-..."
+posentinel scan pt_BR.po --format json > report.json
 ```
-Alternativamente, se você usar a CLI da Anthropic, faça o login via terminal com `ant auth login`.
 
-**Uso:**
-- Com a chave de API presente, o assistente sugerirá correções para os problemas detectados e pedirá confirmação interativa.
-- Para aceitar tudo automaticamente: `--auto-translate`
-- Para desativar a IA e rodar estritamente como um linter local: `--no-translation`
+---
 
-Exemplo de configuração via arquivo `posentinel.toml`:
+## Arquivo de Configuração
+
+Para não precisar digitar as opções no terminal toda vez, você pode criar um arquivo `posentinel.toml` na raiz do seu projeto. O PoSentinel fará a leitura automática deste arquivo:
+
 ```toml
+[project]
+source_language = "en_US"
+target_language = "pt_BR"
+
+[scan]
+target = "./addons"
+fail_on = "error"
+format = "console"
+
 [ai]
-enabled = true
+enabled = false
 auto_translate = false
-model = "claude-3-5-sonnet-20240620"
 ```
+
+---
+
+## Assistente de Tradução por IA
+
+O PoSentinel conta com um assistente capaz de sugerir traduções contextuais e corrigir inconsistências técnicas através da API do Claude (Anthropic).
+
+**Configurando o Acesso:**
+Antes de utilizar, exporte a chave da API no seu terminal:
+```bash
+export ANTHROPIC_API_KEY="sk-ant-..."
+```
+*(Ou faça login via ferramenta CLI oficial: `ant auth login`)*
+
+**Utilizando o Assistente:**
+Rode o scan com a flag `--translation`:
+
+```bash
+# Analisa os erros e sugere traduções perguntando (Y/n) antes de aplicar:
+posentinel scan pt_BR.po --translation
+
+# Analisa e aplica a correção da IA de forma 100% automática:
+posentinel scan pt_BR.po --translation --auto-translate
+```
+
+---
 
 ## Licença
 
-Licença MIT. Consulte o arquivo [LICENSE](LICENSE) para obter detalhes.
+Este projeto é distribuído sob a licença [MIT](LICENSE).
