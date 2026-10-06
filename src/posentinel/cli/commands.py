@@ -98,7 +98,7 @@ def _determine_exit_code(summaries: list[ScanSummary], fail_on: FailOnLevel) -> 
     epilog=(
         "Conectando à IA (Anthropic / Claude):\n"
         "  O assistente de IA necessita de acesso à API da Anthropic. Exporte a variável\n"
-        "  ANTHROPIC_API_KEY=\"sua-chave\" ou use `ant auth login` no terminal.\n\n"
+        '  ANTHROPIC_API_KEY="sua-chave" ou use `ant auth login` no terminal.\n\n'
         "Exemplos:\n\n"
         "  posentinel scan pt_BR.po\n"
         "      Analisa um único arquivo, saída em console, exit 1 se houver erro.\n\n"
