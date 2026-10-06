@@ -8,6 +8,7 @@ para `pt_BR`.
 
 A proposta é começar como um **linter determinístico**, confiável e
 simples de integrar a CI/CD, evoluindo posteriormente para análise
+semântica assistida por IA.
 
 ------------------------------------------------------------------------
 
@@ -87,8 +88,13 @@ Reporter
 
 ## 2.3 Regras determinísticas primeiro
 
+O MVP não dependerá de IA.
+
 Regras sintáticas e estruturais deverão ser determinísticas,
 reproduzíveis e adequadas para execução em CI/CD.
+
+A análise semântica por IA será adicionada posteriormente como recurso
+opcional.
 
 ## 2.4 Extensibilidade
 
@@ -239,6 +245,7 @@ Exemplo:
 
 ``` python
 from dataclasses import dataclass
+
 
 @dataclass
 class TranslationEntry:
@@ -826,6 +833,8 @@ Excluir Cliente
 Sintaticamente a entrada pode estar correta, mas semanticamente está
 incorreta.
 
+Esse tipo de análise poderá utilizar IA.
+
 Arquitetura:
 
 ``` text
@@ -844,11 +853,36 @@ Arquitetura:
                   Report
 ```
 
+A IA deverá inicialmente apenas:
+
+1.  detectar
+2.  explicar
+3.  sugerir
+
 A alteração automática do arquivo deverá ser uma etapa posterior.
 
 ------------------------------------------------------------------------
 
+# 22. Pacote opcional de IA
+
+A análise por IA poderá ser disponibilizada separadamente.
+
+Possibilidades:
+
 ``` bash
+pip install posentinel[ai]
+```
+
+ou:
+
+``` bash
+pip install posentinel-ai
+```
+
+Uso:
+
+``` bash
+posentinel scan pt_BR.po --semantic
 ```
 
 Possíveis análises:
@@ -1094,9 +1128,13 @@ A API pública deverá ser considerada estável a partir de:
 -   [ ] Similaridade textual
 -   [ ] Relatórios avançados de consistência
 
+## v0.6 --- IA
+
+-   [ ] Interface para provedores de IA
 -   [ ] Análise semântica
 -   [ ] Sugestões de tradução
 -   [ ] Explicação dos problemas
+-   [ ] IA opcional
 
 ## v0.7 --- Auto Fix
 
