@@ -3,6 +3,7 @@ import os
 
 import anthropic
 import openai
+
 from posentinel.ai.models import TranslationSuggestion
 from posentinel.ai.prompts import build_fix_prompt, build_generate_prompt
 from posentinel.models import Issue, TranslationEntry
@@ -50,7 +51,7 @@ class AnthropicSuggester(BaseSuggester):
 
 
 class OpenAISuggester(BaseSuggester):
-    """Suggester agnóstico que atende qualquer endpoint compatível com OpenAI (OpenRouter, Ollama, Groq, DeepSeek)."""
+    """Suggester agnóstico para endpoints compatíveis com OpenAI."""
 
     def __init__(
         self, model: str, client: openai.OpenAI | None = None, base_url: str | None = None
@@ -58,7 +59,7 @@ class OpenAISuggester(BaseSuggester):
         self._model = model
         if client is None:
             api_key = os.environ.get("OPENAI_API_KEY")
-            # Provedores locais como Ollama não exigem chave, mas a biblioteca openai exige uma string
+            # Provedores locais como Ollama não exigem chave, mas a lib openai exige string
             if not api_key and base_url and ("localhost" in base_url or "127.0.0.1" in base_url):
                 api_key = "dummy"
 
