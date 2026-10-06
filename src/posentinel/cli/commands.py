@@ -35,6 +35,7 @@ from posentinel.rules.translations import EmptyTranslationRule
 app = typer.Typer(
     name="posentinel",
     add_completion=False,
+    context_settings={"help_option_names": ["-h", "--help"]},
     help="Linter determinístico e Assistente de Tradução (IA) para arquivos .po (foco Odoo/pt_BR).",
     epilog=(
         "Para ativar as sugestões de tradução automáticas, você precisa configurar\n"
@@ -51,6 +52,31 @@ app = typer.Typer(
         "  posentinel version"
     ),
 )
+
+
+def version_callback(value: bool) -> None:
+    if value:
+        typer.echo(f"posentinel {__version__}")
+        raise typer.Exit()
+
+
+@app.callback()
+def main(
+    version: Annotated[
+        bool | None,
+        typer.Option(
+            "--version",
+            "-v",
+            callback=version_callback,
+            is_eager=True,
+            help="Exibe a versão instalada do PoSentinel.",
+        ),
+    ] = None,
+) -> None:
+    """
+    Linter determinístico e Assistente de Tradução (IA) para arquivos .po (foco Odoo/pt_BR).
+    """
+    pass
 
 
 class OutputFormat(StrEnum):
