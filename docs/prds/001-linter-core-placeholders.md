@@ -33,7 +33,7 @@ references:
 - Disponibilizar saída estruturada em JSON e códigos de saída semânticos (`0`, `1`, `2`) para automação contínua.
 
 ### Decisões de produto
-1. **Determinismo absoluto no MVP**: Sem dependência de modelos de linguagem (IA) no Core v0.1.0 para garantir previsibilidade, velocidade instantânea e zero custo de API em CI/CD.
+1. **Determinismo absoluto no MVP**: Sem dependência de modelos externos no Core v0.1.0 para garantir previsibilidade, velocidade instantânea e zero custo de API em CI/CD.
 2. **Contexto Odoo visível no diagnóstico**: O usuário não vê apenas a string isolada, mas sim o módulo e modelo ao qual ela pertence, agilizando a correção direta no código-fonte.
 3. **Suporte nativo a plurais**: Strings com formas singulares e plurais (`msgid_plural`) devem ter suas variações validadas com o mesmo rigor.
 

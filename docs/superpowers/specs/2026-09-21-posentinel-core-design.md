@@ -19,7 +19,7 @@ O objetivo do Milestone v0.1.0 é entregar uma CLI funcional, estável e testada
 
 1. **Clean Core & Domain Isolation**: O motor de validação e as regras não dependem de bibliotecas externas de parsing (`polib`). Apenas os adaptadores de parser conhecem os formatos de origem.
 2. **First-Class Odoo Awareness**: Mesmo no MVP determinístico com regras básicas de PO, o modelo de domínio já extrai e preserva o contexto do Odoo (`#. module:`, referências de modelo/campo `#: model:...,field_description:...`).
-3. **Determinismo Estrito**: Sem dependência de IA nesta fase inicial. Execuções repetidas com a mesma entrada produzem resultados idênticos.
+3. **Determinismo Estrito**: Execuções repetidas com a mesma entrada produzem resultados idênticos.
 4. **Ergonomia CLI & Prontidão para CI**: Uso de `typer` + `rich` para experiência interativa de desenvolvedor e saídas padronizadas em JSON com códigos de saída semânticos (0 = sucesso, 1 = erros detectados, 2 = falha de execução/configuração).
 
 ---

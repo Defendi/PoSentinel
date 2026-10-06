@@ -22,7 +22,7 @@ description: >
 Cria e edita PRDs de feature. Um PRD é uma **unidade de raciocínio de produto**: o conjunto
 de comportamento e regras de negócio cujas decisões se explicam juntas. É **documento humano**
 — a fonte de verdade da intenção do produto. Descreve a feature de forma completa em
-comportamento e regra de negócio; a IA o consulta sob demanda para o *porquê* e implementa a
+comportamento e regra de negócio; o agente o consulta sob demanda para o *porquê* e implementa a
 partir do SPEC (derivado dele pelo `sdd-especificar`). O contexto técnico para implementar vem
 do TRD (carregado junto na implementação). O campo de referências conecta PRDs entre si e a
 recursos externos quando necessário.

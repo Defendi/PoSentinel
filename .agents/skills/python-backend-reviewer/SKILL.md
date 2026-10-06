@@ -1,6 +1,6 @@
 ---
 name: python-backend-reviewer
-description: Expert Python backend code reviewer that identifies over-complexity, duplicates, bad optimizations, and violations of best practices. Use when asked to review Python code quality, check for duplicate code, analyze module complexity, optimize backend code, identify anti-patterns, or ensure adherence to best practices. Ideal for preventing AI-generated code from creating unnecessary files instead of imports, finding repeated validation logic, and catching over-engineered solutions.
+description: Expert Python backend code reviewer that identifies over-complexity, duplicates, bad optimizations, and violations of best practices. Use when asked to review Python code quality, check for duplicate code, analyze module complexity, optimize backend code, identify anti-patterns, or ensure adherence to best practices. Ideal for preventing auto-generated code from creating unnecessary files instead of imports, finding repeated validation logic, and catching over-engineered solutions.
 ---
 
 # Python Backend Code Reviewer
@@ -9,7 +9,7 @@ Expert analysis and refactoring of Python backend code to eliminate duplication,
 
 ## Overview
 
-This skill helps identify and fix common issues in Python backend code, particularly problems introduced by AI code generation:
+This skill helps identify and fix common issues in Python backend code, particularly problems introduced by auto code generation:
 
 - **Duplicate code** across multiple files
 - **Recreated utilities** instead of imports

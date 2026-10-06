@@ -284,6 +284,5 @@ posentinel version
 |---------|--------|
 | `config/loader.py` — suporte a `posentinel.toml` | v0.2 |
 | Regra de inconsistência terminológica (PO007) | v0.5 |
-| Análise semântica por IA | v0.6 |
 | Auto-fix (`posentinel fix`) | v0.7 |
 | Outros formatos (XLIFF, JSON, YAML) | futuro |

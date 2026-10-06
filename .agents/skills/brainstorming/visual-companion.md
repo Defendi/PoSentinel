@@ -59,7 +59,7 @@ without repeating it.
 
 **Launching the server by platform:**
 
-**Claude Code:**
+**Terminal de Desenvolvimento:**
 ```bash
 # Default mode works — the script backgrounds the server itself.
 bash scripts/start-server.sh --project-dir /path/to/project --open
