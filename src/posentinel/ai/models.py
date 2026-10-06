@@ -1,7 +1,5 @@
-from dataclasses import dataclass
+from pydantic import BaseModel
 
-
-@dataclass(frozen=True, slots=True)
-class TranslationSuggestion:
+class TranslationSuggestion(BaseModel):
     msgstr: str
     reasoning: str | None = None

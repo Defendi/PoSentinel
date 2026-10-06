@@ -18,7 +18,9 @@ class ProjectConfig:
 class AiConfig:
     enabled: bool = False
     auto_translate: bool = False
+    provider: str = "anthropic"
     model: str = "claude-3-5-sonnet-20240620"
+    base_url: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

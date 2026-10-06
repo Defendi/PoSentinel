@@ -2,7 +2,7 @@ from unittest.mock import Mock
 
 import anthropic
 
-from posentinel.ai.client import TranslationSuggester
+from posentinel.ai.client import TranslationSuggester, AnthropicSuggester
 from posentinel.ai.models import TranslationSuggestion
 from posentinel.models import Issue, Severity, TranslationEntry
 

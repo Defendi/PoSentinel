@@ -1,13 +1,13 @@
 from unittest.mock import Mock
 
-from posentinel.ai.client import TranslationSuggester
+from posentinel.ai.client import BaseSuggester
 from posentinel.ai.models import TranslationSuggestion
 from posentinel.ai.orchestrator import TranslationAssistant
 from posentinel.models import Issue, ScanSummary, Severity, TranslationEntry
 
 
 def test_orchestrator_process() -> None:
-    suggester = Mock(spec=TranslationSuggester)
+    suggester = Mock(spec=BaseSuggester)
     suggester.suggest.return_value = TranslationSuggestion(msgstr="Olá")
 
     assistant = TranslationAssistant(

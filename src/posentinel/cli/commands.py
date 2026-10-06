@@ -5,7 +5,6 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
 
-import anthropic
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -122,7 +121,7 @@ def _determine_exit_code(summaries: list[ScanSummary], fail_on: FailOnLevel) -> 
 
 @app.command(
     epilog=(
-        "Conectando à IA (Anthropic / Claude):\n"
+        "Conectando à IA (Anthropic / OpenAI / OpenRouter / Ollama):\n"
         "  O assistente de IA necessita de acesso à API da Anthropic. Exporte a variável\n"
         '  ANTHROPIC_API_KEY="sua-chave" ou use `ant auth login` para autenticar via SSO.\n\n'
         "Exemplos:\n\n"
@@ -170,7 +169,7 @@ def scan(
     ] = None,
     ai_model: Annotated[
         str | None,
-        typer.Option("--ai-model", help="Modelo LLM do Claude (ex: claude-3-5-sonnet-20240620)"),
+        typer.Option("--ai-model", help="Modelo LLM (ex: claude-3-5-sonnet-20240620, gpt-4o-mini)"),
     ] = None,
 ) -> None:
     """Analisa um arquivo .po ou diretório em busca de problemas de tradução."""
@@ -184,6 +183,8 @@ def scan(
     eff_ai_enabled = translation_enabled if translation_enabled is not None else config.ai.enabled
     eff_auto = auto_translate if auto_translate is not None else config.ai.auto_translate
     eff_model = ai_model if ai_model is not None else config.ai.model
+    eff_provider = config.ai.provider
+    eff_base_url = config.ai.base_url
 
     analyzer = TranslationAnalyzer(PoParser(), RulesEngine(_default_rules()))
 
@@ -206,48 +207,69 @@ def scan(
 
             if suggester is None:
                 try:
-                    suggester = TranslationSuggester(model=eff_model)
+                    suggester = TranslationSuggester(
+                        model=eff_model, provider=eff_provider, base_url=eff_base_url
+                    )
                     assistant = TranslationAssistant(
                         suggester=suggester,
                         auto_translate=eff_auto,
                         confirm=lambda e, i, s: confirm_translation(e, i, s, console),
                     )
-                except (anthropic.AuthenticationError, TypeError):
+                except Exception as e:
+                    import anthropic
+                    import openai
+
+                    if not isinstance(
+                        e, (anthropic.AnthropicError, openai.OpenAIError, TypeError, Exception)
+                    ):
+                        raise e
+
                     import os
                     import sys
 
                     if sys.stdout.isatty():
+                        provider_name = (
+                            "Anthropic" if eff_provider == "anthropic" else "OpenAI/Agnóstico"
+                        )
                         typer.echo(
-                            "IA ativada, mas nenhuma credencial da Anthropic foi encontrada.",
+                            f"IA ativada, sem credencial válida para {provider_name}.",
                             err=True,
                         )
-                        import webbrowser
 
-                        try:
-                            webbrowser.open("https://console.anthropic.com/settings/keys")
-                            typer.echo(
-                                "Navegador: https://console.anthropic.com/settings/keys ...",
-                                err=True,
-                            )
-                        except Exception:
-                            pass
+                        if eff_provider == "anthropic":
+                            import webbrowser
+
+                            try:
+                                webbrowser.open("https://console.anthropic.com/settings/keys")
+                                typer.echo(
+                                    "Navegador: https://console.anthropic.com/settings/keys ...",
+                                    err=True,
+                                )
+                            except Exception:
+                                pass
 
                         api_key = typer.prompt(
-                            "Cole aqui a nova Key (ou vazio para rodar só o linter)",
+                            "Cole aqui a nova API Key (ou vazio para rodar só o linter)",
                             hide_input=True,
                             default="",
                             show_default=False,
                         )
                         if api_key.strip():
                             try:
-                                os.environ["ANTHROPIC_API_KEY"] = api_key.strip()
-                                suggester = TranslationSuggester(model=eff_model)
+                                if eff_provider == "anthropic":
+                                    os.environ["ANTHROPIC_API_KEY"] = api_key.strip()
+                                else:
+                                    os.environ["OPENAI_API_KEY"] = api_key.strip()
+
+                                suggester = TranslationSuggester(
+                                    model=eff_model, provider=eff_provider, base_url=eff_base_url
+                                )
                                 assistant = TranslationAssistant(
                                     suggester=suggester,
                                     auto_translate=eff_auto,
                                     confirm=lambda e, i, s: confirm_translation(e, i, s, console),
                                 )
-                            except (anthropic.AuthenticationError, TypeError):
+                            except Exception:
                                 typer.echo("Erro: A chave fornecida é inválida.", err=True)
                                 raise typer.Exit(code=2) from None
                         else:
@@ -262,7 +284,7 @@ def scan(
                     else:
                         if translation_enabled is True:
                             typer.echo(
-                                "Erro: Credenciais Claude ausentes (exporte ANTHROPIC_API_KEY).",
+                                "Erro: Credenciais da IA ausentes.",
                                 err=True,
                             )
                             raise typer.Exit(code=2) from None
@@ -278,11 +300,9 @@ def scan(
                 if changes:
                     all_changes[summary.file_path] = changes
                     PoWriter().apply_changes(Path(summary.file_path), changes)
-            except (anthropic.AuthenticationError, TypeError):
+            except Exception:
                 if translation_enabled is True:
-                    typer.echo(
-                        "Erro: Falha de autenticação com a Anthropic durante o uso da IA.", err=True
-                    )
+                    typer.echo("Erro: Falha de rede ou autenticação durante o uso da IA.", err=True)
                     raise typer.Exit(code=2) from None
                 eff_ai_enabled = False
                 break
