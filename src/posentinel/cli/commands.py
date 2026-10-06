@@ -34,13 +34,19 @@ from posentinel.rules.translations import EmptyTranslationRule
 
 app = typer.Typer(
     name="posentinel",
-    help="Linter determinístico para arquivos .po de internacionalização (foco Odoo/pt_BR).",
+    add_completion=False,
+    help="Linter determinístico e Assistente de Tradução (IA) para arquivos .po (foco Odoo/pt_BR).",
     epilog=(
+        "Para ativar as sugestões de tradução automáticas, você precisa configurar\n"
+        "uma chave de API da Anthropic. Isso pode ser feito definindo a variável\n"
+        "de ambiente ANTHROPIC_API_KEY ou autenticando via CLI (ant auth login).\n"
+        "Se nenhuma chave for detectada, o comando continuará apenas como linter local.\n\n"
         "Exemplos:\n\n"
         "  posentinel scan pt_BR.po\n"
         "  posentinel scan ./addons/sale/i18n\n"
         "  posentinel scan pt_BR.po --format json\n"
         "  posentinel scan pt_BR.po --fail-on warning\n"
+        "  posentinel scan pt_BR.po --translation --ai-model claude-3-5-sonnet-20240620\n"
         "  posentinel rules\n"
         "  posentinel version"
     ),
@@ -90,6 +96,9 @@ def _determine_exit_code(summaries: list[ScanSummary], fail_on: FailOnLevel) -> 
 
 @app.command(
     epilog=(
+        "Conectando à IA (Anthropic / Claude):\n"
+        "  O assistente de IA necessita de acesso à API da Anthropic. Exporte a variável\n"
+        "  ANTHROPIC_API_KEY=\"sua-chave\" ou use a ferramenta `ant auth login` no seu terminal.\n\n"
         "Exemplos:\n\n"
         "  posentinel scan pt_BR.po\n"
         "      Analisa um único arquivo, saída em console, exit 1 se houver erro.\n\n"
@@ -100,7 +109,9 @@ def _determine_exit_code(summaries: list[ScanSummary], fail_on: FailOnLevel) -> 
         "  posentinel scan pt_BR.po --fail-on warning\n"
         "      Bloqueia (exit 1) também quando há apenas avisos, sem erros.\n\n"
         "  posentinel scan pt_BR.po --fail-on none\n"
-        "      Nunca bloqueia por violações de qualidade (exit 0), só por erro operacional."
+        "      Nunca bloqueia por violações de qualidade (exit 0), só por erro operacional.\n\n"
+        "  posentinel scan pt_BR.po --translation --auto-translate\n"
+        "      Verifica arquivos e aplica as sugestões da IA automaticamente, sem perguntar."
     )
 )
 def scan(
@@ -108,16 +119,16 @@ def scan(
         Path | None, typer.Argument(help="Arquivo .po ou diretório a analisar")
     ] = None,
     output_format: Annotated[
-        OutputFormat | None, typer.Option("--format", help="Formato de saída")
+        OutputFormat | None, typer.Option("--format", help="Formato de saída (console ou json)")
     ] = None,
     fail_on: Annotated[
-        FailOnLevel | None, typer.Option("--fail-on", help="Nível mínimo que bloqueia o scan")
+        FailOnLevel | None, typer.Option("--fail-on", help="Nível mínimo para falhar (error, warning, none)")
     ] = None,
     source_lang: Annotated[
-        str | None, typer.Option("--source-lang", help="Idioma do msgid")
+        str | None, typer.Option("--source-lang", help="Idioma do msgid (ex: en_US)")
     ] = None,
     target_lang: Annotated[
-        str | None, typer.Option("--target-lang", help="Idioma do msgstr")
+        str | None, typer.Option("--target-lang", help="Idioma do msgstr (ex: pt_BR)")
     ] = None,
     translation_enabled: Annotated[
         bool | None,
@@ -130,7 +141,9 @@ def scan(
             help="Aplica sem confirmar / força confirmação manual",
         ),
     ] = None,
-    ai_model: Annotated[str | None, typer.Option("--ai-model")] = None,
+    ai_model: Annotated[
+        str | None, typer.Option("--ai-model", help="Modelo LLM do Claude (ex: claude-3-5-sonnet-20240620)")
+    ] = None,
 ) -> None:
     """Analisa um arquivo .po ou diretório em busca de problemas de tradução."""
     config = ConfigLoader().load(Path.cwd())
