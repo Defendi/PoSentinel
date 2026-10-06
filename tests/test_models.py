@@ -9,9 +9,9 @@ from posentinel.models import Issue, OdooMetadata, ScanSummary, Severity, Transl
 
 class TestSeverity:
     def test_values(self) -> None:
-        assert Severity.INFO == "info"
-        assert Severity.WARNING == "warning"
-        assert Severity.ERROR == "error"
+        assert Severity.INFO.value == "info"
+        assert Severity.WARNING.value == "warning"
+        assert Severity.ERROR.value == "error"
 
 
 class TestOdooMetadata:

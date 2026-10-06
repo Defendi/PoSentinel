@@ -1,6 +1,6 @@
 from collections.abc import Callable
 
-from posentinel.ai.client import TranslationSuggester
+from posentinel.ai.client import BaseSuggester
 from posentinel.ai.models import TranslationSuggestion
 from posentinel.models import Issue, ScanSummary, TranslationChange, TranslationEntry
 
@@ -10,7 +10,7 @@ ConfirmFn = Callable[[TranslationEntry, Issue, TranslationSuggestion], bool]
 class TranslationAssistant:
     def __init__(
         self,
-        suggester: TranslationSuggester,
+        suggester: BaseSuggester,
         auto_translate: bool,
         confirm: ConfirmFn,
     ) -> None:
