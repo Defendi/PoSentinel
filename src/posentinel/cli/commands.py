@@ -1,17 +1,29 @@
 """Interface de linha de comando do PoSentinel, construída com Typer."""
 
-from enum import StrEnum
+from collections import defaultdict
+import sys
+if sys.version_info >= (3, 11):
+    from enum import StrEnum
+else:
+    from enum import Enum
+    class StrEnum(str, Enum): pass
 from pathlib import Path
 from typing import Annotated
 
+import anthropic
 import typer
 from rich.console import Console
 from rich.table import Table
 
 from posentinel import __version__
+from posentinel.ai.client import TranslationSuggester
+from posentinel.ai.orchestrator import TranslationAssistant
 from posentinel.analyzers.analyzer import TranslationAnalyzer
+from posentinel.cli.interactive import confirm_translation
+from posentinel.config.loader import ConfigLoader
 from posentinel.models import ScanSummary
 from posentinel.parser.po_parser import PoParser
+from posentinel.parser.po_writer import PoWriter
 from posentinel.reporters.console import ConsoleReporter
 from posentinel.reporters.json import JsonReporter
 from posentinel.rules.base import BaseRule
@@ -97,32 +109,106 @@ def _determine_exit_code(summaries: list[ScanSummary], fail_on: FailOnLevel) -> 
     )
 )
 def scan(
-    target: Annotated[Path, typer.Argument(help="Arquivo .po ou diretório a analisar")],
+    target: Annotated[
+        Path | None, typer.Argument(help="Arquivo .po ou diretório a analisar")
+    ] = None,
     output_format: Annotated[
-        OutputFormat, typer.Option("--format", help="Formato de saída")
-    ] = OutputFormat.CONSOLE,
+        OutputFormat | None, typer.Option("--format", help="Formato de saída")
+    ] = None,
     fail_on: Annotated[
-        FailOnLevel, typer.Option("--fail-on", help="Nível mínimo que bloqueia o scan")
-    ] = FailOnLevel.ERROR,
+        FailOnLevel | None, typer.Option("--fail-on", help="Nível mínimo que bloqueia o scan")
+    ] = None,
+    source_lang: Annotated[
+        str | None, typer.Option("--source-lang", help="Idioma do msgid")
+    ] = None,
+    target_lang: Annotated[
+        str | None, typer.Option("--target-lang", help="Idioma do msgstr")
+    ] = None,
+    translation_enabled: Annotated[
+        bool | None,
+        typer.Option("--translation/--no-translation", help="Ativa/desativa a camada de IA"),
+    ] = None,
+    auto_translate: Annotated[
+        bool | None,
+        typer.Option(
+            "--auto-translate/--no-auto-translate",
+            help="Aplica sem confirmar / força confirmação manual",
+        ),
+    ] = None,
+    ai_model: Annotated[str | None, typer.Option("--ai-model")] = None,
 ) -> None:
     """Analisa um arquivo .po ou diretório em busca de problemas de tradução."""
+    config = ConfigLoader().load(Path.cwd())
+
+    eff_target = target if target is not None else Path(config.scan.target)
+    eff_format = output_format if output_format is not None else OutputFormat(config.scan.format)
+    eff_fail_on = fail_on if fail_on is not None else FailOnLevel(config.scan.fail_on)
+    eff_source = source_lang if source_lang is not None else config.project.source_language
+    eff_target_lang = target_lang if target_lang is not None else config.project.target_language
+    eff_ai_enabled = translation_enabled if translation_enabled is not None else config.ai.enabled
+    eff_auto = auto_translate if auto_translate is not None else config.ai.auto_translate
+    eff_model = ai_model if ai_model is not None else config.ai.model
+
     analyzer = TranslationAnalyzer(PoParser(), RulesEngine(_default_rules()))
 
     try:
-        summaries = analyzer.analyze_path(target)
+        summaries = analyzer.analyze_path(eff_target)
     except FileNotFoundError:
-        typer.echo(f"Erro: arquivo ou diretório não encontrado: {target}", err=True)
+        typer.echo(f"Erro: arquivo ou diretório não encontrado: {eff_target}", err=True)
         raise typer.Exit(code=2) from None
 
-    if output_format == OutputFormat.JSON:
-        typer.echo(JsonReporter().report(summaries))
+    all_changes = defaultdict(list)
+
+    if eff_ai_enabled:
+        console = Console()
+        suggester = None
+        assistant = None
+
+        for summary in summaries:
+            if not summary.issues:
+                continue
+
+            if suggester is None:
+                try:
+                    suggester = TranslationSuggester(model=eff_model)
+                    assistant = TranslationAssistant(
+                        suggester=suggester,
+                        auto_translate=eff_auto,
+                        confirm=lambda e, i, s: confirm_translation(e, i, s, console),
+                    )
+                except anthropic.AuthenticationError:
+                    typer.echo(
+                        "Aviso: sem credenciais Claude configuradas. Continuando sem sugestões de IA.",  # noqa: E501
+                        err=True,
+                    )
+                    eff_ai_enabled = False
+                    break
+
+            try:
+                parse_result = PoParser().parse_file(Path(summary.file_path))
+                entries_by_msgid = {e.msgid: e for e in parse_result.entries}
+
+                changes = assistant.process(summary, entries_by_msgid, eff_source, eff_target_lang)
+                if changes:
+                    all_changes[summary.file_path] = changes
+                    PoWriter().apply_changes(Path(summary.file_path), changes)
+            except anthropic.AuthenticationError:
+                typer.echo(
+                    "Aviso: sem credenciais Claude configuradas. Continuando sem sugestões de IA.",  # noqa: E501
+                    err=True,
+                )
+                eff_ai_enabled = False
+                break
+
+    if eff_format == OutputFormat.JSON:
+        typer.echo(JsonReporter().report(summaries, all_changes if all_changes else None))
     else:
         for summary in summaries:
             if summary.total_entries == 0 and not summary.issues:
                 typer.echo(f"Aviso: {summary.file_path} está vazio (nenhuma entrada).")
-        ConsoleReporter().report(summaries)
+        ConsoleReporter().report(summaries, all_changes if all_changes else None)
 
-    raise typer.Exit(code=_determine_exit_code(summaries, fail_on))
+    raise typer.Exit(code=_determine_exit_code(summaries, eff_fail_on))
 
 
 @app.command()

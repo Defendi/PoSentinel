@@ -89,6 +89,6 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = "-ra -q --cov=posentinel --cov-report=term-missing"
+addopts = "-ra -q "
 testpaths = ["tests"]
 pythonpath = ["src"]

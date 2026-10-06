@@ -1131,9 +1131,9 @@ A API pública deverá ser considerada estável a partir de:
 ## v0.6 --- IA
 
 -   [ ] Interface para provedores de IA
--   [ ] Análise semântica
--   [ ] Sugestões de tradução
--   [ ] Explicação dos problemas
+-   [x] Análise semântica
+-   [x] Sugestões de tradução
+-   [x] Explicação dos problemas
 -   [ ] IA opcional
 
 ## v0.7 --- Auto Fix

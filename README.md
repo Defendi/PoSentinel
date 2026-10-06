@@ -51,3 +51,30 @@ posentinel scan pt_BR.po --format json
 ## License
 
 MIT License. See [LICENSE](LICENSE) for details.
+
+## Autenticação e Assistente de Tradução por IA (v0.6)
+
+O PoSentinel suporta opcionalmente um assistente de tradução e correção usando a API do Claude (Anthropic).
+
+**Para configurar a autenticação:**
+A maneira recomendada é usar a CLI oficial da Anthropic:
+```bash
+ant auth login
+```
+Alternativamente, você pode definir a variável de ambiente `ANTHROPIC_API_KEY`:
+```bash
+export ANTHROPIC_API_KEY="sk-..."
+```
+
+**Uso:**
+- O assistente é ativado por padrão. Ele gerará sugestões para problemas detectados e pedirá confirmação interativa.
+- Para aceitar tudo automaticamente: `--auto-translate`
+- Para desativar a IA e focar apenas na validação: `--no-translation`
+
+Exemplo do `posentinel.toml`:
+```toml
+[ai]
+enabled = true
+auto_translate = false
+model = "claude-opus-5"
+```

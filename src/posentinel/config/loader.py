@@ -3,7 +3,7 @@ from dataclasses import fields
 from pathlib import Path
 from typing import Any
 
-if sys.version_info >= (3, 11):
+if sys.version_info >= (3, 11):  # noqa: UP036
     import tomllib
 else:
     # Fallback for local testing if running < 3.11
