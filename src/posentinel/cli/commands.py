@@ -213,14 +213,50 @@ def scan(
                         confirm=lambda e, i, s: confirm_translation(e, i, s, console),
                     )
                 except (anthropic.AuthenticationError, TypeError):
-                    if translation_enabled is True:
+                    import os
+                    import sys
+
+                    if sys.stdout.isatty():
                         typer.echo(
-                            "Erro: Credenciais Claude ausentes (exporte ANTHROPIC_API_KEY).",
+                            "IA ativada, mas nenhuma credencial da Anthropic foi encontrada.",
                             err=True,
                         )
-                        raise typer.Exit(code=2) from None
-                    eff_ai_enabled = False
-                    break
+                        api_key = typer.prompt(
+                            "Cole sua API Key (ou deixe vazio para rodar apenas como linter)",
+                            hide_input=True,
+                            default="",
+                            show_default=False,
+                        )
+                        if api_key.strip():
+                            try:
+                                os.environ["ANTHROPIC_API_KEY"] = api_key.strip()
+                                suggester = TranslationSuggester(model=eff_model)
+                                assistant = TranslationAssistant(
+                                    suggester=suggester,
+                                    auto_translate=eff_auto,
+                                    confirm=lambda e, i, s: confirm_translation(e, i, s, console),
+                                )
+                            except (anthropic.AuthenticationError, TypeError):
+                                typer.echo("Erro: A chave fornecida é inválida.", err=True)
+                                raise typer.Exit(code=2) from None
+                        else:
+                            if translation_enabled is True:
+                                typer.echo(
+                                    "Erro: Operação abortada (IA obrigatória por --translation).",
+                                    err=True,
+                                )
+                                raise typer.Exit(code=2) from None
+                            eff_ai_enabled = False
+                            break
+                    else:
+                        if translation_enabled is True:
+                            typer.echo(
+                                "Erro: Credenciais Claude ausentes (exporte ANTHROPIC_API_KEY).",
+                                err=True,
+                            )
+                            raise typer.Exit(code=2) from None
+                        eff_ai_enabled = False
+                        break
 
             try:
                 parse_result = PoParser().parse_file(Path(summary.file_path))
@@ -234,7 +270,7 @@ def scan(
             except (anthropic.AuthenticationError, TypeError):
                 if translation_enabled is True:
                     typer.echo(
-                        "Erro: Credenciais Claude ausentes (exporte ANTHROPIC_API_KEY).", err=True
+                        "Erro: Falha de autenticação com a Anthropic durante o uso da IA.", err=True
                     )
                     raise typer.Exit(code=2) from None
                 eff_ai_enabled = False
