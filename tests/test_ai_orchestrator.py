@@ -10,12 +10,12 @@ def test_orchestrator_process() -> None:
     suggester = Mock(spec=TranslationSuggester)
     suggester.suggest.return_value = TranslationSuggestion(msgstr="Olá")
 
-    assistant = TranslationAssistant(suggester, auto_translate=True, confirm=lambda e, i, s: True)
+    assistant = TranslationAssistant(
+        suggester, auto_translate=True, confirm=lambda _e, _i, _s: True
+    )
 
     issue = Issue(code="PO001", message="Vazio", severity=Severity.ERROR, msgid="Hello", line=1)
-    summary = ScanSummary(
-        file_path="test.po", total_entries=1, issues=[issue]
-    )
+    summary = ScanSummary(file_path="test.po", total_entries=1, issues=[issue])
     entries = {"Hello": TranslationEntry(msgid="Hello", msgstr="")}
 
     changes = assistant.process(summary, entries, "en", "pt_BR")
