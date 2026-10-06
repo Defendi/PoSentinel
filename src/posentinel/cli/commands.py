@@ -98,7 +98,7 @@ def _determine_exit_code(summaries: list[ScanSummary], fail_on: FailOnLevel) -> 
     epilog=(
         "Conectando à IA (Anthropic / Claude):\n"
         "  O assistente de IA necessita de acesso à API da Anthropic. Exporte a variável\n"
-        "  ANTHROPIC_API_KEY=\"sua-chave\" ou use a ferramenta `ant auth login` no seu terminal.\n\n"
+        "  ANTHROPIC_API_KEY=\"sua-chave\" ou use `ant auth login` no terminal.\n\n"
         "Exemplos:\n\n"
         "  posentinel scan pt_BR.po\n"
         "      Analisa um único arquivo, saída em console, exit 1 se houver erro.\n\n"
@@ -122,7 +122,8 @@ def scan(
         OutputFormat | None, typer.Option("--format", help="Formato de saída (console ou json)")
     ] = None,
     fail_on: Annotated[
-        FailOnLevel | None, typer.Option("--fail-on", help="Nível mínimo para falhar (error, warning, none)")
+        FailOnLevel | None,
+        typer.Option("--fail-on", help="Nível mínimo para falhar (error, warning, none)"),
     ] = None,
     source_lang: Annotated[
         str | None, typer.Option("--source-lang", help="Idioma do msgid (ex: en_US)")
@@ -142,7 +143,8 @@ def scan(
         ),
     ] = None,
     ai_model: Annotated[
-        str | None, typer.Option("--ai-model", help="Modelo LLM do Claude (ex: claude-3-5-sonnet-20240620)")
+        str | None,
+        typer.Option("--ai-model", help="Modelo LLM do Claude (ex: claude-3-5-sonnet-20240620)"),
     ] = None,
 ) -> None:
     """Analisa um arquivo .po ou diretório em busca de problemas de tradução."""
