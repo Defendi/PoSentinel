@@ -221,8 +221,19 @@ def scan(
                             "IA ativada, mas nenhuma credencial da Anthropic foi encontrada.",
                             err=True,
                         )
+                        import webbrowser
+
+                        try:
+                            webbrowser.open("https://console.anthropic.com/settings/keys")
+                            typer.echo(
+                                "Navegador: https://console.anthropic.com/settings/keys ...",
+                                err=True,
+                            )
+                        except Exception:
+                            pass
+
                         api_key = typer.prompt(
-                            "Cole sua API Key (ou deixe vazio para rodar apenas como linter)",
+                            "Cole aqui a nova Key (ou vazio para rodar só o linter)",
                             hide_input=True,
                             default="",
                             show_default=False,

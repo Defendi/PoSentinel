@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "posentinel"
-version = "0.6.11"
+version = "0.6.12"
 description = "Linter determinístico e analisador de qualidade de tradução para arquivos PO do Odoo"
 readme = "README.md"
 requires-python = ">=3.12"
