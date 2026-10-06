@@ -183,6 +183,7 @@ def scan(
                 parse_result = PoParser().parse_file(Path(summary.file_path))
                 entries_by_msgid = {e.msgid: e for e in parse_result.entries}
 
+                assert assistant is not None
                 changes = assistant.process(summary, entries_by_msgid, eff_source, eff_target_lang)
                 if changes:
                     all_changes[summary.file_path] = changes

@@ -31,4 +31,5 @@ class TranslationSuggester:
             messages=[{"role": "user", "content": prompt}],
             output_format=TranslationSuggestion,
         )
+        assert response.parsed_output is not None
         return response.parsed_output
