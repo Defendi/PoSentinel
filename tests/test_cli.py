@@ -73,14 +73,18 @@ class TestScanExitCodes:
         assert "vazio" in result.stdout.lower()
 
     def test_scans_directory_reporting_all_files(self, tmp_path: Path) -> None:
-        (tmp_path / "a.po").write_text('msgid "x"\nmsgstr "y"\n', encoding="utf-8")
-        (tmp_path / "b.po").write_text('msgid "x"\nmsgstr "y"\n', encoding="utf-8")
+        d1 = tmp_path / "foo"
+        d1.mkdir()
+        (d1 / "pt_BR.po").write_text('msgid "x"\nmsgstr "y"\n', encoding="utf-8")
+        d2 = tmp_path / "bar"
+        d2.mkdir()
+        (d2 / "pt_BR.po").write_text('msgid "x"\nmsgstr "y"\n', encoding="utf-8")
 
         result = runner.invoke(app, ["scan", str(tmp_path)])
 
         assert result.exit_code == 0
-        assert "a.po" in result.stdout
-        assert "b.po" in result.stdout
+        assert "foo/pt_BR.po" in result.stdout.replace("\\", "/")
+        assert "bar/pt_BR.po" in result.stdout.replace("\\", "/")
 
 
 class TestScanJsonFormat:

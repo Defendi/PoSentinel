@@ -188,7 +188,7 @@ def scan(
     analyzer = TranslationAnalyzer(PoParser(), RulesEngine(_default_rules()))
 
     try:
-        summaries = analyzer.analyze_path(eff_target)
+        summaries = analyzer.analyze_path(eff_target, target_lang=eff_target_lang)
     except FileNotFoundError:
         typer.echo(f"Erro: arquivo ou diretório não encontrado: {eff_target}", err=True)
         raise typer.Exit(code=2) from None

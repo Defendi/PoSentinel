@@ -14,12 +14,17 @@ class TranslationAnalyzer:
         self._parser = parser
         self._engine = engine
 
-    def analyze_path(self, path: Path) -> list[ScanSummary]:
+    def analyze_path(self, path: Path, target_lang: str | None = None) -> list[ScanSummary]:
         if path.is_dir():
-            return [self._analyze_file(po_file) for po_file in self._discover_po_files(path)]
+            return [
+                self._analyze_file(po_file)
+                for po_file in self._discover_po_files(path, target_lang)
+            ]
         return [self._analyze_file(path)]
 
-    def _discover_po_files(self, directory: Path) -> list[Path]:
+    def _discover_po_files(self, directory: Path, target_lang: str | None = None) -> list[Path]:
+        if target_lang:
+            return sorted(directory.rglob(f"{target_lang}.po"))
         return sorted(directory.rglob("*.po"))
 
     def _analyze_file(self, path: Path) -> ScanSummary:
