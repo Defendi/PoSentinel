@@ -8,7 +8,7 @@ O **PoSentinel** é um projeto independente de linter e ferramenta de qualidade 
 
 ## Regras Específicas
 
-- **Anonimato de Autoria**: É ESTRITAMENTE PROIBIDO incluir qualquer referência a IA, Claude, Claude Code, Antigravity, LLMs, ChatGPT, bots ou prompts em mensagens de commit, comentários no código, documentação pública, PRs ou qualquer texto do projeto. Todo o artefato produzido e o histórico de commits devem refletir autoria 100% humana.
+- **Anonimato de Autoria**: É ESTRITAMENTE PROIBIDO mencionar que o código foi gerado por IA, Claude, Antigravity, LLMs ou prompts em mensagens de commit, comentários no código, documentação pública, PRs ou qualquer texto do projeto. Todo o artefato produzido e o histórico de commits devem refletir autoria 100% humana.
 - **Independência de Ecossistema**: Este projeto **NÃO** pertence ao ecossistema da Gotryx. Não carregue, não aplique e não faça referência a regras, convenções, skills ou MCPs específicos da Gotryx (`gotryx-project`, RabbitMQ Gotryx, Grafana Gotryx, módulos `gt_*`, etc.).
 - **Comunicação**: Sempre responda e entregue as respostas em português do Brasil (`pt-BR`).
 - **Arquitetura**: Siga os padrões estabelecidos na documentação interna em `docs/` e na especificação técnica do Core.
