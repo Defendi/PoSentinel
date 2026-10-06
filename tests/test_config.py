@@ -10,7 +10,7 @@ def test_config_loader_missing_file(tmp_path: Path) -> None:
 
     assert isinstance(config, PoSentinelConfig)
     assert config.scan.target == "."
-    assert config.ai.enabled is True
+    assert config.ai.enabled is False
     assert config.project.source_language == "en"
 
 
@@ -27,7 +27,7 @@ def test_config_loader_partial_override(tmp_path: Path) -> None:
     assert config.scan.target == "./src"
     assert config.ai.model == "custom-model"
     assert config.scan.format == "console"
-    assert config.ai.enabled is True
+    assert config.ai.enabled is False
     assert config.project.source_language == "en"
 
 
@@ -39,4 +39,4 @@ def test_config_loader_invalid_toml(tmp_path: Path) -> None:
     config = loader.load(tmp_path)
 
     assert config.scan.target == "."
-    assert config.ai.enabled is True
+    assert config.ai.enabled is False

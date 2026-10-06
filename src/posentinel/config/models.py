@@ -16,9 +16,9 @@ class ProjectConfig:
 
 @dataclass(frozen=True, slots=True)
 class AiConfig:
-    enabled: bool = True
+    enabled: bool = False
     auto_translate: bool = False
-    model: str = "claude-opus-5"
+    model: str = "claude-3-5-sonnet-20240620"
 
 
 @dataclass(frozen=True, slots=True)

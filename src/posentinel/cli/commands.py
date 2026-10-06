@@ -213,10 +213,9 @@ def scan(
                         confirm=lambda e, i, s: confirm_translation(e, i, s, console),
                     )
                 except (anthropic.AuthenticationError, TypeError):
-                    typer.echo(
-                        "Aviso: sem credenciais Claude configuradas. Continuando sem sugestões de IA.",  # noqa: E501
-                        err=True,
-                    )
+                    if translation_enabled is True:
+                        typer.echo("Erro: Credenciais Claude ausentes (exporte ANTHROPIC_API_KEY).", err=True)
+                        raise typer.Exit(code=2)
                     eff_ai_enabled = False
                     break
 
@@ -230,10 +229,9 @@ def scan(
                     all_changes[summary.file_path] = changes
                     PoWriter().apply_changes(Path(summary.file_path), changes)
             except (anthropic.AuthenticationError, TypeError):
-                typer.echo(
-                    "Aviso: sem credenciais Claude configuradas. Continuando sem sugestões de IA.",  # noqa: E501
-                    err=True,
-                )
+                if translation_enabled is True:
+                    typer.echo("Erro: Credenciais Claude ausentes (exporte ANTHROPIC_API_KEY).", err=True)
+                    raise typer.Exit(code=2)
                 eff_ai_enabled = False
                 break
 
