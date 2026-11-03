@@ -94,7 +94,37 @@ class TestScanJsonFormat:
         payload = json.loads(result.stdout)
         assert len(payload["results"]) == 1
         assert payload["results"][0]["file_path"] == str(FIXTURES_DIR / "invalid.po")
+        # Confirma que as issues contêm a chave msgstr
+        for issue in payload["results"][0]["issues"]:
+            assert "msgstr" in issue
         assert result.exit_code == 1
+
+
+class TestScanBaselineAndIgnoreOptions:
+    def test_scan_with_ignore_option_suppresses_selected_rules(self, tmp_path: Path) -> None:
+        po_file = tmp_path / "fuzzy.po"
+        po_file.write_text('#, fuzzy\nmsgid "Hello"\nmsgstr "Olá"\n', encoding="utf-8")
+
+        # Sem ignore, falha ou gera warning
+        res1 = runner.invoke(app, ["scan", str(po_file), "--fail-on", "warning"])
+        assert res1.exit_code == 1
+
+        # Com ignore PO006, passa com exit 0
+        res2 = runner.invoke(
+            app, ["scan", str(po_file), "--fail-on", "warning", "--ignore", "PO006"]
+        )
+        assert res2.exit_code == 0
+
+    def test_scan_with_baseline_option(self, tmp_path: Path) -> None:
+        base_file = tmp_path / "base.po"
+        base_file.write_text('msgid "A"\nmsgstr ""\n', encoding="utf-8")
+
+        target_file = tmp_path / "target.po"
+        target_file.write_text('msgid "A"\nmsgstr ""\n\nmsgid "B"\nmsgstr "OK"\n', encoding="utf-8")
+
+        # Com baseline apontando para base_file, o erro pré-existente de "A" é filtrado
+        result = runner.invoke(app, ["scan", str(target_file), "--baseline", str(base_file)])
+        assert result.exit_code == 0
 
 
 class TestHelpExamples:
@@ -129,6 +159,49 @@ class TestVersionCommand:
 
         assert result.exit_code == 0
         assert __version__ in result.stdout
+
+
+class TestInitClaudeAgent:
+    def test_init_claude_agent_creates_subagent_file(self, tmp_path: Path) -> None:
+        result = runner.invoke(app, ["init-claude-agent", "--path", str(tmp_path)])
+
+        assert result.exit_code == 0
+        agent_path = tmp_path / ".claude" / "agents" / "posentinel-translator.md"
+        assert agent_path.exists()
+        content = agent_path.read_text(encoding="utf-8")
+        assert "name: posentinel-translator" in content
+        assert "posentinel scan" in content
+
+    def test_init_claude_agent_aborts_without_force_if_exists(self, tmp_path: Path) -> None:
+        agent_path = tmp_path / ".claude" / "agents" / "posentinel-translator.md"
+        agent_path.parent.mkdir(parents=True, exist_ok=True)
+        agent_path.write_text("existing content", encoding="utf-8")
+
+        result = runner.invoke(app, ["init-claude-agent", "--path", str(tmp_path)])
+
+        assert result.exit_code == 1
+        assert "já existe" in result.stderr or "já existe" in result.stdout
+        assert agent_path.read_text(encoding="utf-8") == "existing content"
+
+    def test_init_claude_agent_overwrites_with_force(self, tmp_path: Path) -> None:
+        agent_path = tmp_path / ".claude" / "agents" / "posentinel-translator.md"
+        agent_path.parent.mkdir(parents=True, exist_ok=True)
+        agent_path.write_text("existing content", encoding="utf-8")
+
+        result = runner.invoke(app, ["init-claude-agent", "--path", str(tmp_path), "--force"])
+
+        assert result.exit_code == 0
+        content = agent_path.read_text(encoding="utf-8")
+        assert "name: posentinel-translator" in content
+
+    def test_init_claude_flag(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.chdir(tmp_path)
+        result = runner.invoke(app, ["--init-claude"])
+
+        assert result.exit_code == 0
+        agent_path = tmp_path / ".claude" / "agents" / "posentinel-translator.md"
+        assert agent_path.exists()
+        assert "name: posentinel-translator" in agent_path.read_text(encoding="utf-8")
 
 
 class TestMainEntryPoint:

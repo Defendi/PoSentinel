@@ -16,11 +16,14 @@ No Odoo, um erro simples de digitação em um placeholder (por exemplo, traduzir
 
 ### Principais Funcionalidades
 
-- **Proteção de Placeholders:** Identifica se variáveis Python (como `%s`, `%d`, `%(partner_id)s`, `{value}`) foram apagadas, alteradas ou inseridas indevidamente na tradução.
-- **Validação de Marcação (Markup):** Detecta tags HTML/XML desbalanceadas ou corrompidas (ex: `<strong>` sem o devido fechamento `</strong>`).
+- **Proteção de Placeholders:** Identifica se variáveis Python (como `%s`, `%d`, `%.2f`, `%(partner_id)s`, `{value}`) foram apagadas, alteradas ou inseridas indevidamente na tradução.
+- **Validação de Marcação (Markup):** Detecta tags HTML/XML desbalanceadas ou corrompidas (ex: `<strong>` sem o devido fechamento `</strong>`), com suporte nativo a tags void (`<br>`, `<img>`).
+- **Conformidade com Glossário Regulatório:** Assegura o uso de termos obrigatórios definidos no projeto (ex.: regras regulatórias MOVER / Inovar-Auto).
+- **Consistência de Pontuação e Espaçamento:** Verifica correspondência de dois-pontos e pontos finais, e remove espaços indevidos antes de pontuação dupla no padrão pt_BR.
 - **Detecção de Termos Duvidosos:** Avisa sobre traduções vazias ou marcadas como `fuzzy` (desatualizadas).
+- **Edição Cirúrgica (`lookup` e `set`):** Consulta status e atualiza traduções diretamente no `.po` sem corromper quebras de linha (CRLF/LF), permissões de arquivo ou gerar diffs desnecessários.
 - **Formatos de Saída Versáteis:** Resultados visuais detalhados no terminal ou exportação em JSON para automações estruturadas.
-- **Assistente de Tradução (Opcional):** Integração opcional para corrigir automaticamente as traduções diretamente pelo terminal.
+- **Assistente de Tradução (Opcional):** Integração opcional para sugerir traduções contextuais diretamente pelo terminal ou gerar subagente dedicado para Claude Code.
 
 ---
 
@@ -40,9 +43,7 @@ uv tool install posentinel
 
 ## Como Usar (Guia Rápido)
 
-O comando principal é o `posentinel scan`, que pode receber o caminho de um arquivo específico ou de um diretório inteiro.
-
-### 1. Varredura Básica
+### 1. Varredura Básica (`scan`)
 
 Para escanear um único arquivo ou todos os arquivos de um diretório recursivamente:
 
@@ -52,9 +53,28 @@ posentinel scan caminho/para/pt_BR.po
 
 # Inspecionar uma pasta de um módulo Odoo
 posentinel scan ./addons/meu_modulo/i18n
+
+# Comparar apenas alterações novas em relação a uma baseline ou ref Git
+posentinel scan pt_BR.po --baseline baseline/pt_BR.po
+posentinel scan pt_BR.po --changed-only origin/main
 ```
 
-### 2. Integração com Pipelines (CI/CD)
+### 2. Edição e Consulta Cirúrgica (`lookup` e `set`)
+
+Ideal para pipelines, scripts ou assistentes automatizados (como subagentes de tradução) que precisam consultar e atualizar entradas pontuais com segurança total:
+
+```bash
+# Consulta status de um termo (missing, empty, fuzzy ou translated)
+posentinel lookup pt_BR.po "Invoice %s" --format json
+
+# Atualiza a tradução de forma atômica, preservando line endings (CRLF/LF) e chmod
+posentinel set pt_BR.po "Invoice %s" "Fatura %s"
+
+# Simula alteração e visualiza apenas o diff gerado sem gravar no disco
+posentinel set pt_BR.po "Discount" "Desconto" --dry-run
+```
+
+### 3. Integração com Pipelines (CI/CD)
 
 O PoSentinel é ideal para barrar Pull Requests que introduzam erros de tradução. 
 Você pode ajustar o nível de rigor da análise com o parâmetro `--fail-on`:
@@ -63,7 +83,7 @@ Você pode ajustar o nível de rigor da análise com o parâmetro `--fail-on`:
 # O comando só falha (exit code 1) se houver ERROS graves (placeholders corrompidos). Ignora avisos.
 posentinel scan pt_BR.po --fail-on error
 
-# O comando falha se houver ERROS ou AVISOS (traduções vazias, fuzzy).
+# O comando falha se houver ERROS ou AVISOS (traduções vazias, fuzzy, pontuação).
 posentinel scan pt_BR.po --fail-on warning
 ```
 
@@ -83,7 +103,7 @@ jobs:
         run: posentinel scan ./addons --fail-on error
 ```
 
-### 3. Gerar Saída para Ferramentas Terceiras
+### 4. Gerar Saída para Ferramentas Terceiras
 
 Para exportar as falhas num formato processável, utilize `--format json`:
 
@@ -93,19 +113,42 @@ posentinel scan pt_BR.po --format json > report.json
 
 ---
 
+## Regras de Validação Ativas
+
+Consulte as regras ativas a qualquer momento com `posentinel rules`:
+
+| Código | Severidade | Descrição |
+|---|---|---|
+| **PO001** | WARNING | Termo original com tradução vazia |
+| **PO002** | ERROR | Placeholder do original ausente na tradução (`%s`, `%.2f`, `%(x)s`, `{var}`) |
+| **PO003** | ERROR / WARNING | Variável nomeada traduzida por engano ou caractere `%` solto em template |
+| **PO004** | ERROR | Tradução contém mais placeholders do que o original ou mistura `%s` com `%(x)s` |
+| **PO005** | WARNING | Tags HTML/XML omitidas ou desequilibradas na tradução (void tags tratadas) |
+| **PO006** | WARNING | Entrada marcada como fuzzy (`#, fuzzy`), pendente de revisão |
+| **PO007** | WARNING | Termo obrigatório do glossário não utilizado na tradução |
+| **PO010** | WARNING | Divergência de pontuação final (`:`, `.`) ou espaçamento antes de pontuação dupla |
+
+---
+
 ## Arquivo de Configuração
 
-Para não precisar digitar as opções no terminal toda vez, você pode criar um arquivo `posentinel.toml` na raiz do seu projeto. O PoSentinel fará a leitura automática deste arquivo:
+O PoSentinel descobre automaticamente o arquivo `posentinel.toml` subindo a árvore de diretórios ancestrais (estilo Ruff/ESLint). Você também pode especificar o arquivo via `--config / -c`:
 
 ```toml
 [project]
 source_language = "en_US"
 target_language = "pt_BR"
 
+[project.glossary]
+"vehicle recycling certificate" = ["Certificado de Reciclagem Veicular", "CRV"]
+"dismantling" = ["desmontagem"]
+"scrapped" = ["baixa", "baixado"]
+
 [scan]
 target = "./addons"
 fail_on = "error"
 format = "console"
+ignore_rules = ["PO006"]
 
 [ai]
 enabled = false

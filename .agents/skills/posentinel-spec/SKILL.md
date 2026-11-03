@@ -96,15 +96,20 @@ src/posentinel/
 │   ├── translations.py # PO001 (EmptyTranslationRule)
 │   ├── placeholders.py # PO002, PO003, PO004
 │   ├── syntax.py       # PO005 (InvalidMarkupRule)
-│   └── fuzzy.py        # PO006 (FuzzyTranslationRule) — PST-10
+│   ├── fuzzy.py        # PO006 (FuzzyTranslationRule)
+│   ├── glossary.py     # PO007 (GlossaryRule)
+│   └── punctuation.py  # PO010 (PunctuationSpacingRule)
 ├── analyzers/
 │   └── analyzer.py     # TranslationAnalyzer — orquestra parser + engine
 ├── reporters/
 │   ├── console.py      # ConsoleReporter (Rich)
 │   └── json.py         # JsonReporter
 ├── cli/
-│   └── commands.py     # app Typer: scan, rules, version
-└── config/             # loader.py → planejado para v0.2 (NÃO implementar no MVP)
+│   ├── commands.py     # CLI Typer: scan, lookup, set, rules, version
+│   └── lookup_set.py   # Operações cirúrgicas e atômicas de lookup e set
+└── config/
+    ├── loader.py       # ConfigLoader — descobre e lê posentinel.toml
+    └── models.py       # PoSentinelConfig, ScanConfig, ProjectConfig, AiConfig
 
 tests/
 ├── fixtures/           # valid.po, invalid.po, odoo_pt_br.po  ← PST-11
@@ -180,16 +185,18 @@ class Issue:
 
 ---
 
-## Regras do MVP (PO001–PO006)
+## Catálogo de Regras Ativas (PO001–PO010)
 
 | Código | Classe | Severidade | Detecta |
-|--------|--------|-----------|---------|
+|---|---|---|---|
 | PO001 | `EmptyTranslationRule` | WARNING | `msgid` preenchido com `msgstr` vazio (exceto cabeçalho) |
-| PO002 | `MissingPlaceholderRule` | ERROR | Placeholder do original ausente na tradução (`%s`, `%d`, `%(var)s`, `{var}`) |
-| PO003 | `InvalidPlaceholderRule` | ERROR | Variável nomeada traduzida por engano — preencher `suggestion` com o nome correto |
-| PO004 | `ExtraPlaceholderRule` | ERROR | Tradução contém mais placeholders do que o original |
-| PO005 | `InvalidMarkupRule` | WARNING | Tags HTML/XML do original omitidas ou desequilibradas na tradução |
+| PO002 | `MissingPlaceholderRule` | ERROR | Placeholder do original ausente na tradução (`%s`, `%.2f`, `%(var)s`, `{var}`) |
+| PO003 | `InvalidPlaceholderRule` | ERROR / WARNING | Variável nomeada traduzida por engano (ERROR) ou `%` solto em template (WARNING) |
+| PO004 | `ExtraPlaceholderRule` | ERROR | Tradução contém mais placeholders do que o original ou mistura `%s` com `%(var)s` |
+| PO005 | `InvalidMarkupRule` | WARNING | Tags HTML/XML do original omitidas ou desequilibradas na tradução (void tags tratadas) |
 | PO006 | `FuzzyTranslationRule` | WARNING | Entrada com flag `#, fuzzy` — ignorada pelo Odoo em produção |
+| PO007 | `GlossaryRule` | WARNING | Termo regulatório/obrigatório do glossário não utilizado na tradução |
+| PO010 | `PunctuationSpacingRule` | WARNING | Divergência de pontuação final (`:`, `.`) ou espaço antes de pontuação dupla |
 
 ### Contrato de implementação de regra
 
@@ -203,16 +210,16 @@ class MinhaRegra(BaseRule):
         if entry.is_header:
             return []
         # lógica aqui
-        # iterar entry.all_translations para cobrir plurais
+        # iterar entry.translation_pairs para cobrir singular e plurais mapeados
         return []  # lista vazia = sem problemas
 ```
 
 ### Placeholders suportados (PO002/PO003/PO004)
 
 | Tipo | Exemplos |
-|------|---------|
-| Printf posicional | `%s`, `%d`, `%f`, `%r` |
-| Printf nomeado | `%(partner_name)s`, `%(count)d` |
+|---|---|
+| Printf posicional (com flags/largura/precisão) | `%s`, `%d`, `%.2f`, `%-10.3f`, `%r` |
+| Printf nomeado | `%(partner_name)s`, `%(count)d`, `%(rate).2f` |
 | Python str.format | `{var}`, `{0}`, `{name!r}` |
 | Escapado (ignorar) | `%%` → **não** é placeholder |
 
@@ -221,18 +228,35 @@ class MinhaRegra(BaseRule):
 ## CLI — contratos públicos
 
 ```bash
-posentinel scan <target> [--format console|json] [--fail-on error|warning|none]
+# Varredura determinística
+posentinel scan <target> [--format console|json] [--fail-on error|warning|none] [--baseline <file>] [--changed-only <ref>] [--ignore <codes>] [--config <file>]
+
+# Consulta cirúrgica de entrada (read-only)
+posentinel lookup <po_file> <msgid> [--context <ctx>] [--similar <n>] [--format console|json]
+
+# Atualização atômica e cirúrgica de entrada (preserva CRLF/LF e chmod)
+posentinel set <po_file> <msgid> <msgstr> [--context <ctx>] [--ref <source_ref>] [--force] [--dry-run] [--format console|json]
+
+# Utilitários
 posentinel rules
 posentinel version
 ```
 
-**Exit codes** (estáveis desde v0.1.0):
-
+**Exit codes do `scan`**:
 | Código | Significado |
-|--------|------------|
-| `0` | Nenhum problema no nível configurado |
+|---|---|
+| `0` | Sucesso (nenhum problema no nível configurado) |
 | `1` | Violações encontradas |
-| `2` | Erro operacional (arquivo não encontrado, sintaxe ilegível) |
+| `2` | Erro operacional (arquivo inválido, erro de I/O) |
+
+**Exit codes do `lookup` e `set`**:
+| Código | Significado |
+|---|---|
+| `0` | Sucesso (`lookup`: traduzido; `set`: gravado ou inalterado) |
+| `1` | Ação necessária (`lookup`: ausente, vazio ou fuzzy; `set`: recusado por validação/já traduzido) |
+| `2` | Erro operacional (arquivo ilegível, formato corrompido, permissão negada) |
+| `3` | Ambiguidade de contexto (`msgid` repetido em múltiplos contextos sem `--context`) |
+| `4` | Fora de escopo (arquivo `en_US.po` ou `Language` diferente de `pt_BR`) |
 
 ---
 

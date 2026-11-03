@@ -76,3 +76,19 @@ class TestRulesEngine:
         entry = TranslationEntry(msgid="Hello", msgstr="Olá")
 
         assert engine.analyze(entry) == []
+
+    def test_engine_skips_rules_in_global_ignore_list(self) -> None:
+        engine = RulesEngine([_AlwaysFlagsRule()], ignore_rules={"T001"})
+        entry = TranslationEntry(msgid="Hello", msgstr="Olá")
+
+        assert engine.analyze(entry) == []
+
+    def test_engine_skips_rule_matching_entry_comment_directive(self) -> None:
+        engine = RulesEngine([_AlwaysFlagsRule()])
+        entry = TranslationEntry(
+            msgid="Hello",
+            msgstr="Olá",
+            comments=("posentinel: ignore T001",),
+        )
+
+        assert engine.analyze(entry) == []

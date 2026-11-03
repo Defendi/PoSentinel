@@ -18,5 +18,10 @@ class Issue:
     severity: Severity
     line: int | None
     msgid: str | None
+    msgstr: str | None = None
     odoo_context: str | None = None
+    term_type: str | None = None
+    field_name: str | None = None
     suggestion: str | None = None
+    references: tuple[str, ...] = ()
+    comments: tuple[str, ...] = ()

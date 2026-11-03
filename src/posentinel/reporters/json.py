@@ -53,6 +53,9 @@ class JsonReporter:
             "severity": issue.severity.value,
             "line": issue.line,
             "msgid": issue.msgid,
+            "msgstr": issue.msgstr,
             "odoo_context": issue.odoo_context,
             "suggestion": issue.suggestion,
+            "references": list(issue.references),
+            "comments": list(issue.comments),
         }

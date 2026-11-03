@@ -192,3 +192,39 @@ class TestExtraPlaceholderRule:
 
         assert len(issues) == 1
         assert "%(bonus)d" in issues[0].message
+
+    def test_regression_multiset_missing_repeated_token(self) -> None:
+        """Caso clássico: Invoice %s due on %s -> Fatura %s deve falhar com PO002."""
+        rule = MissingPlaceholderRule()
+        entry = TranslationEntry(
+            msgid="Invoice %s due on %s",
+            msgstr="Fatura %s",
+        )
+        issues = rule.check(entry)
+        assert len(issues) == 1
+        assert issues[0].code == "PO002"
+        assert "%s" in issues[0].message
+        assert issues[0].msgstr == "Fatura %s"
+
+    def test_regression_multiset_extra_repeated_token(self) -> None:
+        """Original com um token e tradução duplicando token indevidamente."""
+        rule = ExtraPlaceholderRule()
+        entry = TranslationEntry(
+            msgid="Hello %(name)s",
+            msgstr="Olá %(name)s e %(name)s",
+        )
+        issues = rule.check(entry)
+        assert len(issues) == 1
+        assert issues[0].code == "PO004"
+        assert "%(name)s" in issues[0].message
+
+    def test_flags_mixed_positional_and_named_printf(self) -> None:
+        """Misturar %s com %(x)s quebra em tempo de execução no Python."""
+        rule = ExtraPlaceholderRule()
+        entry = TranslationEntry(
+            msgid="Hello %(name)s",
+            msgstr="Olá %s %(name)s",
+        )
+        issues = rule.check(entry)
+        messages = " ".join(i.message for i in issues)
+        assert "mistura formatação printf posicional" in messages

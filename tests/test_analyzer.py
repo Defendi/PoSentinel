@@ -109,3 +109,19 @@ class TestAnalyzeDirectory:
 
         names = [Path(summary.file_path).name for summary in summaries]
         assert names == sorted(names)
+
+    def test_baseline_filters_out_preexisting_issues(self, tmp_path: Path) -> None:
+        baseline_file = tmp_path / "baseline.po"
+        baseline_file.write_text('msgid "Old Empty"\nmsgstr ""\n', encoding="utf-8")
+
+        target_file = tmp_path / "target.po"
+        target_file.write_text(
+            'msgid "Old Empty"\nmsgstr ""\n\nmsgid "New Empty"\nmsgstr ""\n',
+            encoding="utf-8",
+        )
+
+        summaries = _analyzer().analyze_path(target_file, baseline_path=baseline_file)
+        assert len(summaries) == 1
+        issues = summaries[0].issues
+        assert len(issues) == 1
+        assert issues[0].msgid == "New Empty"

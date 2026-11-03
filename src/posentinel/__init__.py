@@ -1,3 +1,3 @@
 """PoSentinel — linter determinístico para arquivos .po do ecossistema Odoo."""
 
-__version__ = "0.6.16"
+__version__ = "0.7.4"

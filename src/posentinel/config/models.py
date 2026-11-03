@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True, slots=True)
@@ -6,12 +6,16 @@ class ScanConfig:
     target: str = "."
     format: str = "console"
     fail_on: str = "error"
+    ignore_rules: tuple[str, ...] = ()
+    baseline: str | None = None
+    changed_only: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class ProjectConfig:
     source_language: str = "en"
     target_language: str = "pt_BR"
+    glossary: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

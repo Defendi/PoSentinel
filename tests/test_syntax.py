@@ -107,3 +107,19 @@ class TestInvalidMarkupRule:
         entry = TranslationEntry(msgid="<a>Link</a>", msgstr="")
 
         assert rule.check(entry) == []
+
+    def test_does_not_flag_emails_in_angle_brackets(self) -> None:
+        rule = InvalidMarkupRule()
+        entry = TranslationEntry(
+            msgid="Send an email to <jobs@example.odoo.com>",
+            msgstr="Envie um e-mail para <jobs@example.odoo.com>",
+        )
+        assert rule.check(entry) == []
+
+    def test_does_not_flag_urls_in_angle_brackets(self) -> None:
+        rule = InvalidMarkupRule()
+        entry = TranslationEntry(
+            msgid="Visit <https://odoo.com/help>",
+            msgstr="Visite <https://odoo.com/help>",
+        )
+        assert rule.check(entry) == []
