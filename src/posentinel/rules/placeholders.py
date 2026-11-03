@@ -174,9 +174,8 @@ class InvalidPlaceholderRule(BaseRule):
             orig_loose_percent = orig_cleaned.count("%")
             trans_loose_percent = trans_cleaned.count("%")
 
-            has_printf_template = (
-                entry.is_python_format
-                or any(p.token.startswith("%") for p in original)
+            has_printf_template = entry.is_python_format or any(
+                p.token.startswith("%") for p in original
             )
 
             if has_printf_template and trans_loose_percent > orig_loose_percent:

@@ -531,7 +531,9 @@ def _infer_entry_metadata(
                 elif inferred_context and clean_path.startswith(f"{inferred_context}/"):
                     normalized_refs.append(f"code:addons/{clean_path}:{line_part}")
                 elif inferred_context and not clean_path.startswith(f"{inferred_context}/"):
-                    normalized_refs.append(f"code:addons/{inferred_context}/{clean_path}:{line_part}")
+                    normalized_refs.append(
+                        f"code:addons/{inferred_context}/{clean_path}:{line_part}"
+                    )
                 else:
                     normalized_refs.append(f"code:addons/{clean_path}:{line_part}")
             elif has_code_pattern:

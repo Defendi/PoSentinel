@@ -392,12 +392,7 @@ class TestLookupAndSetCases:
     def test_case_23_crlf_line_endings_preserved(self, tmp_path: Path) -> None:
         po_file = tmp_path / "pt_BR.po"
         crlf_content = (
-            'msgid ""\r\n'
-            'msgstr ""\r\n'
-            '"Language: pt_BR\\r\\n"\r\n'
-            "\r\n"
-            'msgid "Hello"\r\n'
-            'msgstr ""\r\n'
+            'msgid ""\r\nmsgstr ""\r\n"Language: pt_BR\\r\\n"\r\n\r\nmsgid "Hello"\r\nmsgstr ""\r\n'
         )
         po_file.write_bytes(crlf_content.encode("utf-8"))
 
@@ -530,12 +525,18 @@ class TestLookupAndSetCases:
         )
 
         # a) Casos literais sem interpolação
-        assert InvalidPlaceholderRule().check(
-            TranslationEntry(msgid="Discount (%)", msgstr="Desconto (%)")
-        ) == []
-        assert InvalidPlaceholderRule().check(
-            TranslationEntry(msgid="<span>%</span>", msgstr="<span>%</span>")
-        ) == []
+        assert (
+            InvalidPlaceholderRule().check(
+                TranslationEntry(msgid="Discount (%)", msgstr="Desconto (%)")
+            )
+            == []
+        )
+        assert (
+            InvalidPlaceholderRule().check(
+                TranslationEntry(msgid="<span>%</span>", msgstr="<span>%</span>")
+            )
+            == []
+        )
 
         # b) Placeholders com precisão (ex: %.2f) reconhecidos no PO002
         missing_issues = MissingPlaceholderRule().check(
@@ -549,13 +550,16 @@ class TestLookupAndSetCases:
         assert "%.2f" in missing_issues[0].message
 
         # c) Named printf com precisão e escape duplo (%(rate).2f%%)
-        assert InvalidPlaceholderRule().check(
-            TranslationEntry(
-                msgid="Rate %(rate).2f%%",
-                msgstr="Taxa %(rate).2f%%",
-                flags=("python-format",),
+        assert (
+            InvalidPlaceholderRule().check(
+                TranslationEntry(
+                    msgid="Rate %(rate).2f%%",
+                    msgstr="Taxa %(rate).2f%%",
+                    flags=("python-format",),
+                )
             )
-        ) == []
+            == []
+        )
 
         # d) Template python-format com % solto extra dispara PO003 (WARNING)
         loose_issues = InvalidPlaceholderRule().check(

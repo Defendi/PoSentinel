@@ -130,8 +130,7 @@ class PoParser:
                         has_js_comment = True
 
             is_py = (
-                any(".py" in occ for occ, _ in item.occurrences)
-                or "python-format" in item.flags
+                any(".py" in occ for occ, _ in item.occurrences) or "python-format" in item.flags
             )
             is_js = any(".js" in occ for occ, _ in item.occurrences)
 

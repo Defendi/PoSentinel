@@ -23,7 +23,7 @@ def _create_sample_odoo_po(path: Path, module: str = "my_module") -> None:
         f"#. module: {module}\n"
         "#. odoo-python\n"
         f"#: code:addons/{module}/controllers/main.py:0\n"
-        '#, python-format\n'
+        "#, python-format\n"
         'msgid "Existing message %(name)s."\n'
         'msgstr "Mensagem existente %(name)s."\n'
         "\n"
@@ -78,12 +78,10 @@ class TestSetOdooInference:
         assert "#. odoo-python\n" in content
         assert "#: code:addons/my_module/controllers/api.py:0\n" in content
         assert "#, python-format\n" in content
-        assert 'msgid "Unknown slot \'%(slot)s\'."\n' in content
-        assert 'msgstr "Slot \'%(slot)s\' desconhecido."\n' in content
+        assert "msgid \"Unknown slot '%(slot)s'.\"\n" in content
+        assert "msgstr \"Slot '%(slot)s' desconhecido.\"\n" in content
 
-    def test_set_with_explicit_context_adds_odoo_python_for_code_ref(
-        self, tmp_path: Path
-    ) -> None:
+    def test_set_with_explicit_context_adds_odoo_python_for_code_ref(self, tmp_path: Path) -> None:
         po_file = tmp_path / "pt_BR.po"
         _create_sample_odoo_po(po_file, module="my_module")
 
