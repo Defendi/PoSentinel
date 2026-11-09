@@ -490,3 +490,254 @@ class TestQWebReferencesAndValidation:
             iss["code"] == "PO008" and "Entrada QWeb com referência 'code:'" in iss["message"]
             for iss in issues
         )
+
+
+class TestQWebSetEnhancements:
+    """Testes cobrindo os 3 defeitos resolvidos no posentinel set para referências QWeb."""
+
+    def _setup_mut_module(self, tmp_path: Path) -> tuple[Path, Path]:
+        module_dir = tmp_path / "mut_mover_renovar"
+        i18n_dir = module_dir / "i18n"
+        views_dir = module_dir / "views"
+        i18n_dir.mkdir(parents=True)
+        views_dir.mkdir(parents=True)
+
+        po_file = i18n_dir / "pt_BR.po"
+        _create_sample_odoo_po(po_file, module="mut_mover_renovar")
+
+        xml_lines = ['<?xml version="1.0" encoding="utf-8"?>', "<odoo>"]
+        while len(xml_lines) < 230:
+            xml_lines.append("    <!-- padding line -->")
+        xml_lines.extend(
+            [
+                '    <template id="qr_part_template">',
+                "        <div>",
+                "            <span>",
+                "                Mover Program traceability record on Certificadora Mutualizo.",
+                "            </span>",
+                "        </div>",
+                "    </template>",
+                "</odoo>",
+            ]
+        )
+        xml_file = views_dir / "mer_qr_part_template.xml"
+        xml_file.write_text("\n".join(xml_lines), encoding="utf-8")
+
+        return po_file, xml_file
+
+    def test_cmd1_code_prefix_for_qweb_converts_to_model_terms(self, tmp_path: Path) -> None:
+        """Defeito 1: --ref com code: para QWeb deve converter para model_terms e passar no scan."""
+        po_file, _ = self._setup_mut_module(tmp_path)
+        msgid = "Mover Program traceability record on Certificadora Mutualizo."
+
+        res = runner.invoke(
+            app,
+            [
+                "set",
+                str(po_file),
+                msgid,
+                "Registro de rastreabilidade do Programa Mover na Certificadora Mutualizo.",
+                "--ref",
+                "code:addons/mut_mover_renovar/views/mer_qr_part_template.xml:238",
+            ],
+        )
+        assert res.exit_code == 0
+        content = po_file.read_text(encoding="utf-8")
+        assert "#: model_terms:ir.ui.view,arch_db:mut_mover_renovar.qr_part_template\n" in content
+        assert "#: code:" not in content.split(f'msgid "{msgid}"')[1].split("msgstr")[0]
+        assert "odoo-python" not in content.split(f'msgid "{msgid}"')[0].split("#. module:")[-1]
+
+        # Scan com --fail-on warning não pode ter PO008
+        scan_res = runner.invoke(app, ["scan", str(po_file), "--fail-on", "warning"])
+        assert scan_res.exit_code == 0
+        assert "PASSED" in scan_res.stdout
+
+    def test_cmd2_no_ref_discovers_single_qweb_view(self, tmp_path: Path) -> None:
+        """Defeito 2: sem --ref, descobre a view QWeb no módulo e grava model_terms."""
+        po_file, _ = self._setup_mut_module(tmp_path)
+        msgid = "Mover Program traceability record on Certificadora Mutualizo."
+
+        res = runner.invoke(
+            app,
+            [
+                "set",
+                str(po_file),
+                msgid,
+                "Registro de rastreabilidade do Programa Mover na Certificadora Mutualizo.",
+                "--context",
+                "mut_mover_renovar",
+            ],
+        )
+        assert res.exit_code == 0
+        content = po_file.read_text(encoding="utf-8")
+        assert "#: model_terms:ir.ui.view,arch_db:mut_mover_renovar.qr_part_template\n" in content
+
+        # Scan com --fail-on warning não pode ter PO008
+        scan_res = runner.invoke(app, ["scan", str(po_file), "--fail-on", "warning"])
+        assert scan_res.exit_code == 0
+        assert "PASSED" in scan_res.stdout
+
+    def test_cmd3_xml_path_without_line_resolves_via_msgid(self, tmp_path: Path) -> None:
+        """Defeito 3: --ref sem linha acha o template pelo msgid e nunca usa nome do arquivo."""
+        po_file, _ = self._setup_mut_module(tmp_path)
+        msgid = "Mover Program traceability record on Certificadora Mutualizo."
+
+        res = runner.invoke(
+            app,
+            [
+                "set",
+                str(po_file),
+                msgid,
+                "Registro de rastreabilidade do Programa Mover na Certificadora Mutualizo.",
+                "--ref",
+                "views/mer_qr_part_template.xml",
+            ],
+        )
+        assert res.exit_code == 0
+        content = po_file.read_text(encoding="utf-8")
+        # Deve ter o id real qr_part_template e NUNCA mer_qr_part_template
+        assert "#: model_terms:ir.ui.view,arch_db:mut_mover_renovar.qr_part_template\n" in content
+        assert "mer_qr_part_template" not in content
+
+        # Scan com --fail-on warning não pode ter PO008
+        scan_res = runner.invoke(app, ["scan", str(po_file), "--fail-on", "warning"])
+        assert scan_res.exit_code == 0
+        assert "PASSED" in scan_res.stdout
+
+    def test_qweb_view_resolution_fails_with_clear_error_when_not_found(
+        self, tmp_path: Path
+    ) -> None:
+        """Defeito 3: quando a busca pelo msgid não acha a view, falha com exit code != 0."""
+        po_file, _ = self._setup_mut_module(tmp_path)
+        orig_content = po_file.read_text(encoding="utf-8")
+
+        res = runner.invoke(
+            app,
+            [
+                "set",
+                str(po_file),
+                "Texto Inexistente No XML",
+                "Texto Traduzido",
+                "--ref",
+                "views/mer_qr_part_template.xml",
+            ],
+        )
+        assert res.exit_code != 0
+        assert po_file.read_text(encoding="utf-8") == orig_content
+        assert (
+            "Não foi possível identificar o id da view em 'views/mer_qr_part_template.xml'"
+            in res.stdout
+            or "view_not_found" in res.stdout
+        )
+
+    def test_text_in_two_qweb_views_generates_two_model_terms_lines(self, tmp_path: Path) -> None:
+        """Caso 2 views: quando o texto está em duas views, gera uma linha #: por view."""
+        module_dir = tmp_path / "mut_mover_renovar"
+        i18n_dir = module_dir / "i18n"
+        views_dir = module_dir / "views"
+        i18n_dir.mkdir(parents=True)
+        views_dir.mkdir(parents=True)
+
+        po_file = i18n_dir / "pt_BR.po"
+        _create_sample_odoo_po(po_file, module="mut_mover_renovar")
+
+        xml_content = """<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="first_view_template">
+        <p>Texto presente em dois templates QWeb.</p>
+    </template>
+    <record id="second_view_record" model="ir.ui.view">
+        <field name="name">Second View</field>
+        <field name="arch" type="xml">
+            <p>Texto presente em dois templates QWeb.</p>
+        </field>
+    </record>
+</odoo>"""
+        (views_dir / "multi_views.xml").write_text(xml_content, encoding="utf-8")
+
+        res = runner.invoke(
+            app,
+            [
+                "set",
+                str(po_file),
+                "Texto presente em dois templates QWeb.",
+                "Texto traduzido em dois templates.",
+                "--context",
+                "mut_mover_renovar",
+            ],
+        )
+        assert res.exit_code == 0
+        content = po_file.read_text(encoding="utf-8")
+        assert (
+            "#: model_terms:ir.ui.view,arch_db:mut_mover_renovar.first_view_template\n" in content
+        )
+        assert "#: model_terms:ir.ui.view,arch_db:mut_mover_renovar.second_view_record\n" in content
+
+    def test_static_owl_xml_remains_code_ref(self, tmp_path: Path) -> None:
+        """Caso OWL: .xml em static/src/xml/ continua code: e não é convertido."""
+        po_file = tmp_path / "pt_BR.po"
+        _create_sample_odoo_po(po_file, module="mut_mover_renovar")
+
+        res = runner.invoke(
+            app,
+            [
+                "set",
+                str(po_file),
+                "OWL Template Button",
+                "Botão do Template OWL",
+                "--ref",
+                "code:addons/mut_mover_renovar/static/src/xml/widget_view.xml:15",
+            ],
+        )
+        assert res.exit_code == 0
+        content = po_file.read_text(encoding="utf-8")
+        assert "#: code:addons/mut_mover_renovar/static/src/xml/widget_view.xml:0\n" in content
+        assert "model_terms:" not in content
+
+    def test_python_code_ref_remains_code_and_odoo_python(self, tmp_path: Path) -> None:
+        """Caso Python: código Python (code:...py) continua com code: e #. odoo-python."""
+        po_file = tmp_path / "pt_BR.po"
+        _create_sample_odoo_po(po_file, module="mut_mover_renovar")
+
+        res = runner.invoke(
+            app,
+            [
+                "set",
+                str(po_file),
+                "Validation Error from Python",
+                "Erro de validação do Python",
+                "--ref",
+                "code:addons/mut_mover_renovar/models/sale_order.py:42",
+            ],
+        )
+        assert res.exit_code == 0
+        content = po_file.read_text(encoding="utf-8")
+        assert "#: code:addons/mut_mover_renovar/models/sale_order.py:0\n" in content
+        assert "#. odoo-python\n" in content
+        assert "model_terms:" not in content
+
+    def test_no_ref_text_not_found_in_qweb_emits_warning_and_keeps_no_ref(
+        self, tmp_path: Path
+    ) -> None:
+        """Caso texto não achado: sem --ref, não inventa ref e emite aviso."""
+        po_file, _ = self._setup_mut_module(tmp_path)
+        msgid = "Texto Desconhecido Que Nao Existe No Modulo"
+
+        res = runner.invoke(
+            app,
+            [
+                "set",
+                str(po_file),
+                msgid,
+                "Texto Desconhecido Traduzido",
+                "--context",
+                "mut_mover_renovar",
+            ],
+        )
+        assert res.exit_code == 0
+        content = po_file.read_text(encoding="utf-8")
+        assert f'msgid "{msgid}"' in content
+        assert 'msgstr "Texto Desconhecido Traduzido"' in content
+        entry_block = content.split(f'msgid "{msgid}"')[0].split("#. module: mut_mover_renovar")[-1]
+        assert "#:" not in entry_block
+        assert "Aviso:           Texto não localizado em views ou relatórios QWeb" in res.stdout
