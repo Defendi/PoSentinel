@@ -285,3 +285,208 @@ class TestScanBaselineOdooConsistency:
         )
         assert res.exit_code == 0
         assert "PASSED — 0 erro(s), 0 aviso(s)" in res.stdout
+
+
+class TestQWebReferencesAndValidation:
+    """Testes específicos para referências QWeb (model_terms), Python (code:) e validação PO008."""
+
+    def test_qweb_set_generates_model_terms_reference(self, tmp_path: Path) -> None:
+        """Caso 1: QWeb deve gerar model_terms e não deve ter odoo-python."""
+        po_file = tmp_path / "pt_BR.po"
+        _create_sample_odoo_po(po_file, module="mut_mover_renovar")
+
+        res = runner.invoke(
+            app,
+            [
+                "set",
+                str(po_file),
+                "Delivery Slip Title",
+                "Título do Comprovante",
+                "--ref",
+                "report/report_mover.xml:report_deliveryslip_document",
+                "--format",
+                "json",
+            ],
+        )
+        assert res.exit_code == 0
+        content = po_file.read_text(encoding="utf-8")
+
+        # Deve gerar model_terms e não deve gerar code: nem odoo-python
+        expected_ref = (
+            "#: model_terms:ir.ui.view,arch_db:mut_mover_renovar.report_deliveryslip_document\n"
+        )
+        assert expected_ref in content
+        assert "#: code:" not in content.split('msgid "Delivery Slip Title"')[1].split("msgstr")[0]
+        # Não pode ter odoo-python antes de Delivery Slip Title
+        prefix_part = content.split('msgid "Delivery Slip Title"')[0]
+        entry_part = prefix_part.split("#. module: mut_mover_renovar")[-1]
+        assert "odoo-python" not in entry_part
+
+    def test_qweb_set_extracts_id_from_xml_file_on_disk(self, tmp_path: Path) -> None:
+        """QWeb extrai o view_id diretamente do arquivo XML quando existe em disco."""
+        module_dir = tmp_path / "my_module"
+        i18n_dir = module_dir / "i18n"
+        views_dir = module_dir / "views"
+        i18n_dir.mkdir(parents=True)
+        views_dir.mkdir(parents=True)
+
+        xml_file = views_dir / "my_report.xml"
+        xml_file.write_text(
+            """<odoo>
+    <template id="custom_report_template">
+        <div><span>Hello QWeb Report</span></div>
+    </template>
+</odoo>""",
+            encoding="utf-8",
+        )
+
+        po_file = i18n_dir / "pt_BR.po"
+        _create_sample_odoo_po(po_file, module="my_module")
+
+        res = runner.invoke(
+            app,
+            [
+                "set",
+                str(po_file),
+                "Hello QWeb Report",
+                "Olá Relatório QWeb",
+                "--ref",
+                "views/my_report.xml:3",
+                "--format",
+                "json",
+            ],
+        )
+        assert res.exit_code == 0
+        content = po_file.read_text(encoding="utf-8")
+        assert "#: model_terms:ir.ui.view,arch_db:my_module.custom_report_template\n" in content
+
+    def test_python_code_continues_generating_code_ref_and_odoo_python(
+        self, tmp_path: Path
+    ) -> None:
+        """Caso 2: Código Python continua gerando code: e comentário extraído odoo-python."""
+        po_file = tmp_path / "pt_BR.po"
+        _create_sample_odoo_po(po_file, module="mut_mover_renovar")
+
+        res = runner.invoke(
+            app,
+            [
+                "set",
+                str(po_file),
+                "Python calculation error",
+                "Erro de cálculo Python",
+                "--ref",
+                "models/stock_move.py:55",
+                "--format",
+                "json",
+            ],
+        )
+        assert res.exit_code == 0
+        content = po_file.read_text(encoding="utf-8")
+        assert "#: code:addons/mut_mover_renovar/models/stock_move.py:0\n" in content
+        # Deve ter odoo-python
+        assert "#. odoo-python\n" in content
+
+    def test_text_in_two_places_generates_both_references(self, tmp_path: Path) -> None:
+        """Caso 3: Um mesmo texto em dois lugares leva uma linha de referência por lugar."""
+        po_file = tmp_path / "pt_BR.po"
+        _create_sample_odoo_po(po_file, module="mut_mover_renovar")
+
+        res = runner.invoke(
+            app,
+            [
+                "set",
+                str(po_file),
+                "Shared Label",
+                "Rótulo Compartilhado",
+                "--ref",
+                "models/sale_order.py:10",
+                "--ref",
+                "report/report_mover.xml:report_deliveryslip_document",
+                "--format",
+                "json",
+            ],
+        )
+        assert res.exit_code == 0
+        content = po_file.read_text(encoding="utf-8")
+
+        assert "#: code:addons/mut_mover_renovar/models/sale_order.py:0\n" in content
+        assert (
+            "#: model_terms:ir.ui.view,arch_db:mut_mover_renovar.report_deliveryslip_document\n"
+            in content
+        )
+        # Como tem Python, inclui odoo-python
+        assert "#. odoo-python\n" in content
+
+    def test_scan_warns_on_qweb_entry_with_code_ref(self, tmp_path: Path) -> None:
+        """Scan falha com --fail-on warning se encontrar entrada QWeb com #: code:."""
+        po_file = tmp_path / "pt_BR.po"
+        content = (
+            'msgid ""\n'
+            'msgstr ""\n'
+            '"Project-Id-Version: Odoo Server 17.0\\n"\n'
+            '"Content-Type: text/plain; charset=UTF-8\\n"\n'
+            '"Language: pt_BR\\n"\n'
+            "\n"
+            "#. module: mut_mover_renovar\n"
+            "#: code:addons/mut_mover_renovar/report/report_mover.xml:0\n"
+            'msgid "Corrupted QWeb Entry"\n'
+            'msgstr "Entrada QWeb Corrompida"\n'
+        )
+        po_file.write_text(content, encoding="utf-8")
+
+        res = runner.invoke(
+            app,
+            [
+                "scan",
+                str(po_file),
+                "--fail-on",
+                "warning",
+                "--format",
+                "json",
+            ],
+        )
+        assert res.exit_code == 1
+        data = json.loads(res.stdout)
+        issues = data["results"][0]["issues"]
+        qweb_issues = [
+            i
+            for i in issues
+            if i["code"] == "PO008" and "Entrada QWeb com referência 'code:'" in i["message"]
+        ]
+        assert len(qweb_issues) == 1
+        assert qweb_issues[0]["severity"] == "warning"
+
+    def test_lookup_displays_warning_on_qweb_entry_with_code_ref(self, tmp_path: Path) -> None:
+        """Lookup reporta o aviso PO008 quando consultado para entrada QWeb com #: code:."""
+        po_file = tmp_path / "pt_BR.po"
+        content = (
+            'msgid ""\n'
+            'msgstr ""\n'
+            '"Project-Id-Version: Odoo Server 17.0\\n"\n'
+            '"Content-Type: text/plain; charset=UTF-8\\n"\n'
+            '"Language: pt_BR\\n"\n'
+            "\n"
+            "#. module: mut_mover_renovar\n"
+            "#: code:addons/mut_mover_renovar/views/report_view.xml:0\n"
+            'msgid "Corrupted QWeb Entry"\n'
+            'msgstr "Entrada QWeb Corrompida"\n'
+        )
+        po_file.write_text(content, encoding="utf-8")
+
+        res = runner.invoke(
+            app,
+            [
+                "lookup",
+                str(po_file),
+                "Corrupted QWeb Entry",
+                "--format",
+                "json",
+            ],
+        )
+        assert res.exit_code == 0  # está traduzida
+        data = json.loads(res.stdout)
+        issues = data["entries"][0]["issues"]
+        assert any(
+            iss["code"] == "PO008" and "Entrada QWeb com referência 'code:'" in iss["message"]
+            for iss in issues
+        )

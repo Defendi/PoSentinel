@@ -365,6 +365,8 @@ def execute_set(
             context=context,
             refs=refs,
             python_format=has_python_format,
+            msgid=norm_target,
+            po_path=po_path,
         )
 
         new_entry_block = _format_new_entry(
@@ -462,11 +464,122 @@ def _format_msgstr_lines(text: str) -> str:
     return f'msgstr "{_escape_po(text)}"\n'
 
 
+def _find_xml_file(
+    file_path_str: str,
+    po_path: Path | None = None,
+    module_name: str | None = None,
+) -> Path | None:
+    clean = file_path_str.lstrip("/")
+
+    # 1. Caminho direto relativo ao CWD ou absoluto
+    direct_p = Path(clean)
+    if direct_p.is_file():
+        return direct_p
+
+    if po_path:
+        # Se po_path estiver em .../<modulo>/i18n/pt_BR.po, parent.parent é a raiz do módulo
+        module_root = po_path.parent.parent if po_path.parent.name == "i18n" else po_path.parent
+
+        cand = module_root / clean
+        if cand.is_file():
+            return cand
+
+        # Remove prefixos comuns addons/<modulo>/ ou <modulo>/
+        sub_paths = [clean]
+        if clean.startswith("addons/"):
+            parts = clean.split("/", 2)
+            if len(parts) >= 3:
+                sub_paths.append(parts[2])
+        if module_name and clean.startswith(f"{module_name}/"):
+            sub_paths.append(clean.split("/", 1)[1])
+
+        for sp in sub_paths:
+            cand = module_root / sp
+            if cand.is_file():
+                return cand
+
+        # Procura por nome de arquivo em views/ ou report/ ou reports/ dentro do módulo
+        file_name = Path(clean).name
+        for sub_dir in ("views", "report", "reports"):
+            cand = module_root / sub_dir / file_name
+            if cand.is_file():
+                return cand
+
+    return None
+
+
+def _find_view_id_in_xml_content(
+    xml_text: str,
+    msgid: str,
+    line_no: int | None = None,
+) -> str | None:
+    """Busca o id do template QWeb ou view (ir.ui.view) que contém o msgid ou a linha indicada."""
+    lines = xml_text.splitlines()
+
+    target_line_idx: int | None = None
+    if line_no is not None and 1 <= line_no <= len(lines):
+        target_line_idx = line_no - 1
+    elif msgid:
+        for idx, line in enumerate(lines):
+            if msgid in line:
+                target_line_idx = idx
+                break
+
+    template_re = re.compile(r'<template\s+[^>]*id=["\']([^"\']+)["\']')
+    view_re = re.compile(
+        r'<record\s+[^>]*id=["\']([^"\']+)["\'][^>]*model=["\']ir\.ui\.view["\']'
+        r'|<record\s+[^>]*model=["\']ir\.ui\.view["\'][^>]*id=["\']([^"\']+)["\']'
+    )
+    generic_record_re = re.compile(r'<record\s+[^>]*id=["\']([^"\']+)["\']')
+
+    if target_line_idx is not None:
+        for i in range(target_line_idx, -1, -1):
+            line_str = lines[i]
+            m_tmpl = template_re.search(line_str)
+            if m_tmpl:
+                return m_tmpl.group(1)
+            m_view = view_re.search(line_str)
+            if m_view:
+                return m_view.group(1) or m_view.group(2)
+            if "<record" in line_str:
+                block = "".join(lines[i : min(i + 5, len(lines))])
+                if 'model="ir.ui.view"' in block or "model='ir.ui.view'" in block:
+                    m_gen = generic_record_re.search(block)
+                    if m_gen:
+                        return m_gen.group(1)
+
+    all_templates: list[str] = [str(t) for t in template_re.findall(xml_text)]
+    if all_templates:
+        if len(all_templates) == 1:
+            return all_templates[0]
+        if msgid:
+            for tmpl_id in all_templates:
+                pattern = rf'<template\s+[^>]*id=["\']{re.escape(tmpl_id)}["\'][\s\S]*?</template>'
+                m = re.search(pattern, xml_text)
+                if m and msgid in m.group(0):
+                    return tmpl_id
+
+    all_views: list[str] = [str(m[0] or m[1]) for m in view_re.findall(xml_text) if m[0] or m[1]]
+    if all_views:
+        if len(all_views) == 1:
+            return all_views[0]
+        if msgid:
+            for v_id in all_views:
+                pattern = rf'<record\s+[^>]*id=["\']{re.escape(v_id)}["\'][\s\S]*?</record>'
+                m = re.search(pattern, xml_text)
+                if m and msgid in m.group(0):
+                    return v_id
+
+    return None
+
+
 def _infer_entry_metadata(
     po: polib.POFile,
     context: str | None,
     refs: list[str] | None,
     python_format: bool,
+    msgid: str = "",
+    po_path: Path | None = None,
 ) -> tuple[str | None, list[str], list[str]]:
     valid_items = [it for it in po if it.msgid and not getattr(it, "obsolete", False)]
     if not valid_items:
@@ -491,6 +604,11 @@ def _infer_entry_metadata(
     existing_occurrences = [occ for it in valid_items for occ, _ in it.occurrences]
     has_code_addons_pattern = any(occ.startswith("code:addons/") for occ in existing_occurrences)
     has_code_pattern = any(occ.startswith("code:") for occ in existing_occurrences)
+    has_odoo_ref_pattern = any(
+        any(occ.startswith(prefix) for prefix in ("code:", "model:", "model_terms:"))
+        for occ in existing_occurrences
+    )
+    has_odoo_ref_style = has_code_addons_pattern or has_code_pattern or has_odoo_ref_pattern
 
     existing_code_lines = [
         line for it in valid_items for occ, line in it.occurrences if occ.startswith("code:")
@@ -501,6 +619,9 @@ def _infer_entry_metadata(
 
     # 3. Normalizar referências se houver
     normalized_refs: list[str] = []
+    has_python_ref = False
+    has_js_ref = False
+
     for r in refs or []:
         r = r.strip()
         if not r:
@@ -514,42 +635,87 @@ def _infer_entry_metadata(
                     normalized_refs.append(r)
             else:
                 normalized_refs.append(r)
-        else:
-            # Caminho de arquivo comum (ex: my_module/controllers/api.py:42)
-            path_part, sep, line_part = r.rpartition(":")
-            if not sep or not line_part.isdigit():
-                path_part = r
-                line_part = "0"
-            elif all_zeros_line:
-                line_part = "0"
+            if ".py" in r:
+                has_python_ref = True
+            if ".js" in r:
+                has_js_ref = True
+            continue
 
-            clean_path = path_part.lstrip("/")
+        # Caminho sem prefixo Odoo
+        path_part, sep, tail = r.rpartition(":")
+        line_part = "0"
+        view_id_from_tail: str | None = None
+        line_no: int | None = None
 
-            if has_code_addons_pattern:
-                if clean_path.startswith("addons/"):
-                    normalized_refs.append(f"code:{clean_path}:{line_part}")
-                elif inferred_context and clean_path.startswith(f"{inferred_context}/"):
-                    normalized_refs.append(f"code:addons/{clean_path}:{line_part}")
-                elif inferred_context and not clean_path.startswith(f"{inferred_context}/"):
-                    normalized_refs.append(
-                        f"code:addons/{inferred_context}/{clean_path}:{line_part}"
-                    )
-                else:
-                    normalized_refs.append(f"code:addons/{clean_path}:{line_part}")
-            elif has_code_pattern:
-                normalized_refs.append(f"code:{clean_path}:{line_part}")
+        if sep:
+            if tail.isdigit():
+                line_part = "0" if all_zeros_line else tail
+                line_no = int(tail)
             else:
-                normalized_refs.append(r)
+                view_id_from_tail = tail
+        else:
+            path_part = r
+
+        clean_path = path_part.lstrip("/")
+        is_qweb = (
+            clean_path.lower().endswith(".xml")
+            or "/views/" in clean_path.lower()
+            or "/report/" in clean_path.lower()
+            or "/reports/" in clean_path.lower()
+            or clean_path.lower().startswith("views/")
+            or clean_path.lower().startswith("report/")
+            or clean_path.lower().startswith("reports/")
+        ) and "/static/" not in clean_path.lower()
+
+        if is_qweb and has_odoo_ref_style:
+            view_id = view_id_from_tail
+            if not view_id:
+                xml_file = _find_xml_file(clean_path, po_path=po_path, module_name=inferred_context)
+                if xml_file:
+                    try:
+                        content = xml_file.read_text(encoding="utf-8", errors="replace")
+                        view_id = _find_view_id_in_xml_content(
+                            content, msgid=msgid, line_no=line_no
+                        )
+                    except Exception:
+                        view_id = None
+
+            if not view_id:
+                view_id = Path(clean_path).stem
+
+            module = inferred_context or ""
+            if "." in view_id:
+                full_view_id = view_id
+            elif module:
+                full_view_id = f"{module}.{view_id}"
+            else:
+                full_view_id = view_id
+
+            normalized_refs.append(f"model_terms:ir.ui.view,arch_db:{full_view_id}")
+            continue
+
+        # Arquivos de código Python / JS
+        if clean_path.endswith(".py"):
+            has_python_ref = True
+        if clean_path.endswith(".js"):
+            has_js_ref = True
+
+        if has_code_addons_pattern:
+            if clean_path.startswith("addons/"):
+                normalized_refs.append(f"code:{clean_path}:{line_part}")
+            elif inferred_context and clean_path.startswith(f"{inferred_context}/"):
+                normalized_refs.append(f"code:addons/{clean_path}:{line_part}")
+            elif inferred_context and not clean_path.startswith(f"{inferred_context}/"):
+                normalized_refs.append(f"code:addons/{inferred_context}/{clean_path}:{line_part}")
+            else:
+                normalized_refs.append(f"code:addons/{clean_path}:{line_part}")
+        elif has_code_pattern:
+            normalized_refs.append(f"code:{clean_path}:{line_part}")
+        else:
+            normalized_refs.append(f"{clean_path}:{line_part}" if sep else r)
 
     # 4. Inferir comentários extraídos (#.)
     inferred_comments: list[str] = []
-
-    is_python = (
-        python_format
-        or any(".py" in r for r in (refs or []))
-        or any(".py" in r for r in normalized_refs)
-    )
-    is_js = any(".js" in r for r in (refs or [])) or any(".js" in r for r in normalized_refs)
 
     file_has_odoo_python = any(
         "odoo-python" in (it.comment or "").splitlines() for it in valid_items
@@ -558,9 +724,10 @@ def _infer_entry_metadata(
         "odoo-javascript" in (it.comment or "").splitlines() for it in valid_items
     )
 
+    is_python = has_python_ref or (python_format and not normalized_refs)
     if is_python and file_has_odoo_python:
         inferred_comments.append("odoo-python")
-    if is_js and file_has_odoo_javascript:
+    if has_js_ref and file_has_odoo_javascript:
         inferred_comments.append("odoo-javascript")
 
     return inferred_context, normalized_refs, inferred_comments

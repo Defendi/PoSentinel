@@ -80,4 +80,25 @@ class OdooFormatRule(BaseRule):
                 )
             )
 
+        # 4. Referência 'code:' para templates/views QWeb (.xml de views ou reports)
+        for ref in entry.references:
+            if ref.startswith("code:"):
+                path_part = ref.removeprefix("code:").split(":")[0].lower()
+                is_qweb_view = (
+                    path_part.endswith(".xml")
+                    or "/views/" in path_part
+                    or "/report/" in path_part
+                    or "/reports/" in path_part
+                ) and "/static/" not in path_part
+                if is_qweb_view:
+                    issues.append(
+                        self._issue(
+                            entry,
+                            f"Entrada QWeb com referência 'code:' ('{ref}'). "
+                            "O Odoo não carrega traduções de views e relatórios QWeb com 'code:'. "
+                            "Utilize 'model_terms:ir.ui.view,arch_db:<módulo>.<id_view>' "
+                            "para que a tradução seja aplicada na tela ou relatório.",
+                        )
+                    )
+
         return issues
